@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { calculateStatus } from '@/lib/river-utils';
+import { calculateStatus, calculateTrend } from '@/lib/river-utils';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -103,6 +103,24 @@ export async function GET(request: Request) {
           river.optimal_flow_max
         );
 
+        // Calculate trend using flow from ~3 hours ago
+        let trend: string = 'unknown';
+        if (flow !== null && flow > -999000) {
+          const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+          const { data: oldCondition } = await supabase
+            .from('conditions')
+            .select('flow')
+            .eq('river_id', river.id)
+            .lte('timestamp', threeHoursAgo)
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (oldCondition?.flow !== null && oldCondition?.flow !== undefined && oldCondition.flow > -999000) {
+            trend = calculateTrend(flow, oldCondition.flow);
+          }
+        }
+
         // Insert condition
         const { error: insertError } = await supabase.from('conditions').insert({
           river_id: river.id,
@@ -111,6 +129,7 @@ export async function GET(request: Request) {
           temperature,
           gage_height: gageHeight,
           status,
+          trend,
         });
 
         if (insertError) {

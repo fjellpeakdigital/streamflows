@@ -1,4 +1,4 @@
-import { RiverStatus, FlowTrend, Condition, River } from './types/database';
+import { RiverStatus, FlowTrend } from './types/database';
 
 /**
  * Calculate river status based on current flow and optimal range
@@ -8,57 +8,22 @@ export function calculateStatus(
   optimalMin: number | null,
   optimalMax: number | null
 ): RiverStatus {
-  if (!flow || !optimalMin || !optimalMax) {
-    return 'low';
-  }
-
-  // Check for ice-affected (typically very low flows in winter)
-  const now = new Date();
-  const month = now.getMonth();
-  if ((month === 0 || month === 1 || month === 11) && flow < optimalMin * 0.5) {
-    return 'ice_affected';
-  }
-
-  if (flow >= optimalMin && flow <= optimalMax) {
-    return 'optimal';
-  } else if (flow > optimalMax && flow <= optimalMax * 1.5) {
-    return 'elevated';
-  } else if (flow > optimalMax * 1.5) {
-    return 'high';
-  } else {
-    return 'low';
-  }
+  if (flow === null || flow <= -999000) return 'ice_affected';
+  if (optimalMin === null || optimalMax === null) return 'unknown';
+  if (flow < optimalMin * 0.5)                   return 'low';
+  if (flow >= optimalMin && flow <= optimalMax)   return 'optimal';
+  if (flow > optimalMax && flow <= optimalMax * 1.5) return 'elevated';
+  if (flow > optimalMax * 1.5)                   return 'high';
+  return 'unknown';
 }
 
 /**
  * Calculate flow trend based on recent conditions
  */
-export function calculateTrend(conditions: Condition[]): FlowTrend {
-  if (conditions.length < 2) {
-    return 'stable';
-  }
-
-  // Sort by timestamp descending
-  const sorted = [...conditions].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-
-  const current = sorted[0].flow;
-  const previous = sorted[1].flow;
-
-  if (!current || !previous) {
-    return 'stable';
-  }
-
-  const percentChange = ((current - previous) / previous) * 100;
-
-  if (percentChange > 5) {
-    return 'rising';
-  } else if (percentChange < -5) {
-    return 'falling';
-  } else {
-    return 'stable';
-  }
+export function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): FlowTrend {
+  if (currentFlow > flowThreeHoursAgo * 1.10) return 'rising';
+  if (currentFlow < flowThreeHoursAgo * 0.90) return 'falling';
+  return 'stable';
 }
 
 /**

@@ -1,7 +1,7 @@
-export type RiverStatus = 'optimal' | 'elevated' | 'high' | 'low' | 'ice_affected';
+export type RiverStatus = 'optimal' | 'elevated' | 'high' | 'low' | 'ice_affected' | 'unknown';
 export type Species = 'trout' | 'salmon' | 'bass' | 'pike' | 'shad' | 'other';
 export type AlertType = 'optimal_flow' | 'flow_threshold' | 'temperature';
-export type FlowTrend = 'rising' | 'falling' | 'stable';
+export type FlowTrend = 'rising' | 'falling' | 'stable' | 'unknown';
 
 export interface River {
   id: string;
@@ -33,6 +33,7 @@ export interface Condition {
   temperature: number | null;
   gage_height: number | null;
   status: RiverStatus | null;
+  trend: FlowTrend | null;
   created_at: string;
 }
 
