@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiverDetail } from './river-detail';
-import { calculateTrend } from '@/lib/river-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,10 +73,10 @@ async function getRiver(slug: string) {
     user_note = noteData;
   }
 
-  // Calculate trend
   const allConditions = conditions || [];
-  const trend = calculateTrend(allConditions.slice(-10));
   const currentCondition = allConditions[allConditions.length - 1];
+  // Read trend from the most recent condition (stored by the cron job)
+  const trend = currentCondition?.trend ?? 'unknown';
 
   return {
     ...river,

@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiverCard } from '@/components/river-card';
 import { RiverWithCondition } from '@/lib/types/database';
-import { calculateTrend } from '@/lib/river-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +65,7 @@ async function getFavoriteRivers() {
       conditions?.filter((c) => c.river_id === river.id) || [];
     const currentCondition = riverConditions[0];
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
-    const trend = calculateTrend(riverConditions.slice(0, 10));
+    const trend = currentCondition?.trend ?? 'unknown';
     const userNote = notes?.find((n) => n.river_id === river.id);
 
     return {
