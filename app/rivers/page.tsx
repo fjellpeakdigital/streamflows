@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
 import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
-import { calculateTrend } from '@/lib/river-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,8 +60,8 @@ async function getRivers() {
     // Get species for this river
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
 
-    // Calculate trend
-    const trend = calculateTrend(riverConditions.slice(0, 10));
+    // Read trend from the most recent condition (stored by the cron job)
+    const trend = currentCondition?.trend ?? 'unknown';
 
     // Check if favorite
     const is_favorite = favorites.some((f) => f.river_id === river.id);
@@ -87,6 +86,7 @@ async function getStats(rivers: RiverWithCondition[]) {
     high: 0,
     low: 0,
     ice_affected: 0,
+    unknown: 0,
   };
 
   rivers.forEach((river) => {
@@ -94,7 +94,7 @@ async function getStats(rivers: RiverWithCondition[]) {
     if (status) {
       statusCounts[status]++;
     } else {
-      statusCounts.low++;
+      statusCounts.unknown++;
     }
   });
 
