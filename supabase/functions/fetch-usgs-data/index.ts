@@ -3,52 +3,56 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 interface USGSResponse {
   value: {
     timeSeries: Array<{
-      sourceInfo: {
-        siteCode: Array<{
-          value: string;
-        }>;
-      };
       variable: {
-        variableCode: Array<{
-          value: string;
-        }>;
+        variableCode: Array<{ value: string }>;
       };
       values: Array<{
-        value: Array<{
-          value: string;
-          dateTime: string;
-        }>;
+        value: Array<{ value: string; dateTime: string }>;
       }>;
     }>;
   };
 }
 
-Deno.serve(async (req) => {
+function calculateStatus(
+  flow: number | null,
+  optimalMin: number | null,
+  optimalMax: number | null
+): string {
+  if (flow === null || flow <= -999000) return 'ice_affected';
+  if (optimalMin === null || optimalMax === null) return 'unknown';
+  if (flow < optimalMin * 0.5)                    return 'low';
+  if (flow >= optimalMin && flow <= optimalMax)    return 'optimal';
+  if (flow > optimalMax && flow <= optimalMax * 1.5) return 'elevated';
+  if (flow > optimalMax * 1.5)                    return 'high';
+  return 'unknown';
+}
+
+function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): string {
+  if (currentFlow > flowThreeHoursAgo * 1.10) return 'rising';
+  if (currentFlow < flowThreeHoursAgo * 0.90) return 'falling';
+  return 'stable';
+}
+
+Deno.serve(async () => {
   try {
-    const supabaseClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get all rivers
-    const { data: rivers, error: riversError } = await supabaseClient
+    const { data: rivers, error: riversError } = await supabase
       .from('rivers')
       .select('*');
 
-    if (riversError) {
-      throw riversError;
-    }
+    if (riversError) throw riversError;
 
     console.log(`Fetching data for ${rivers.length} rivers`);
 
-    // Fetch data for each river
     const results = [];
 
     for (const river of rivers) {
       try {
-        // Fetch flow, temperature, and gage height data
         const usgsUrl = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${river.usgs_station_id}&parameterCd=00060,00065,00010&siteStatus=all`;
-
         const response = await fetch(usgsUrl);
         const data: USGSResponse = await response.json();
 
@@ -57,117 +61,74 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        let flow = null;
-        let temperature = null;
-        let gageHeight = null;
+        let flow: number | null = null;
+        let temperature: number | null = null;
+        let gageHeight: number | null = null;
         let timestamp = new Date().toISOString();
 
-        // Parse USGS data
         for (const series of data.value.timeSeries) {
           const paramCode = series.variable.variableCode[0].value;
           const values = series.values[0]?.value;
-
           if (!values || values.length === 0) continue;
 
-          const latestValue = values[values.length - 1];
-          timestamp = latestValue.dateTime;
+          const latest = values[values.length - 1];
+          timestamp = latest.dateTime;
 
-          // 00060 = Discharge (flow in CFS)
           if (paramCode === '00060') {
-            flow = parseFloat(latestValue.value);
-          }
-          // 00010 = Temperature (Celsius - convert to Fahrenheit)
-          else if (paramCode === '00010') {
-            const celsius = parseFloat(latestValue.value);
-            temperature = (celsius * 9) / 5 + 32;
-          }
-          // 00065 = Gage height (feet)
-          else if (paramCode === '00065') {
-            gageHeight = parseFloat(latestValue.value);
+            flow = parseFloat(latest.value);
+          } else if (paramCode === '00010') {
+            temperature = (parseFloat(latest.value) * 9) / 5 + 32;
+          } else if (paramCode === '00065') {
+            gageHeight = parseFloat(latest.value);
           }
         }
 
-        // Calculate status
-        let status = 'low';
-        if (flow && river.optimal_flow_min && river.optimal_flow_max) {
-          // Check for ice-affected (winter months + very low flow)
-          const date = new Date();
-          const month = date.getMonth();
-          if ((month === 0 || month === 1 || month === 11) && flow < river.optimal_flow_min * 0.5) {
-            status = 'ice_affected';
-          } else if (flow >= river.optimal_flow_min && flow <= river.optimal_flow_max) {
-            status = 'optimal';
-          } else if (flow > river.optimal_flow_max && flow <= river.optimal_flow_max * 1.5) {
-            status = 'elevated';
-          } else if (flow > river.optimal_flow_max * 1.5) {
-            status = 'high';
-          } else {
-            status = 'low';
+        const status = calculateStatus(flow, river.optimal_flow_min, river.optimal_flow_max);
+
+        // Calculate trend from 3-hour-ago reading
+        let trend = 'unknown';
+        if (flow !== null && flow > -999000) {
+          const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+          const { data: oldCondition } = await supabase
+            .from('conditions')
+            .select('flow')
+            .eq('river_id', river.id)
+            .lte('timestamp', threeHoursAgo)
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (oldCondition?.flow != null && oldCondition.flow > -999000) {
+            trend = calculateTrend(flow, oldCondition.flow);
           }
         }
 
-        // Insert condition
-        const { error: insertError } = await supabaseClient
+        const { error: insertError } = await supabase
           .from('conditions')
-          .insert({
-            river_id: river.id,
-            timestamp,
-            flow,
-            temperature,
-            gage_height: gageHeight,
-            status,
-          });
+          .insert({ river_id: river.id, timestamp, flow, temperature, gage_height: gageHeight, status, trend });
 
         if (insertError) {
-          console.error(`Error inserting condition for ${river.name}:`, insertError);
+          console.error(`Insert error for ${river.name}:`, insertError);
         } else {
-          results.push({
-            river: river.name,
-            flow,
-            temperature,
-            status,
-          });
+          results.push({ river: river.name, flow, status, trend });
         }
 
-        // Small delay to avoid rate limiting
+        // Avoid USGS rate limiting
         await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error(`Error processing ${river.name}:`, error);
+      } catch (err) {
+        console.error(`Error processing ${river.name}:`, err);
       }
     }
 
-    // Check for alerts and send notifications (simplified version)
-    // In production, you'd integrate with an email service like Resend or SendGrid
-    const { data: activeAlerts } = await supabaseClient
-      .from('user_alerts')
-      .select('*, rivers(*), conditions!inner(*)')
-      .eq('is_active', true);
-
     console.log(`Processed ${results.length} rivers`);
-    console.log(`Found ${activeAlerts?.length || 0} active alerts`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        processed: results.length,
-        alerts: activeAlerts?.length || 0,
-        results,
-      }),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Error in fetch-usgs-data:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, processed: results.length, results }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('Fatal error:', err);
+    return new Response(JSON.stringify({ success: false, error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 });
