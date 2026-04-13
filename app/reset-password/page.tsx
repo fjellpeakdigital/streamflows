@@ -16,17 +16,18 @@ export default function ResetPasswordPage() {
   const [done, setDone]                     = useState(false);
   const [ready, setReady]                   = useState(false);
 
-  // Supabase puts the recovery token in the URL hash. The client SDK
-  // picks it up automatically via onAuthStateChange when the session
-  // is exchanged. We just need to wait for it.
+  // In the PKCE flow (@supabase/ssr), the auth callback already exchanged
+  // the recovery code for a session before this page loaded. Just verify
+  // a session exists — no need to wait for PASSWORD_RECOVERY event.
   useEffect(() => {
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setReady(true);
+      } else {
+        setError('Reset link is invalid or has expired. Please request a new one.');
       }
     });
-    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,12 +77,16 @@ export default function ResetPasswordPage() {
           </div>
         ) : !ready ? (
           <div className="bg-white border border-border rounded-2xl p-8 text-center shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Verifying reset link… If this takes too long,{' '}
-              <a href="/forgot-password" className="text-primary hover:underline font-medium">
-                request a new one
-              </a>.
-            </p>
+            {error ? (
+              <>
+                <p className="text-sm text-red-600 mb-3">{error}</p>
+                <a href="/forgot-password" className="text-sm text-primary hover:underline font-medium">
+                  Request a new reset link
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Verifying reset link…</p>
+            )}
           </div>
         ) : (
           <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
