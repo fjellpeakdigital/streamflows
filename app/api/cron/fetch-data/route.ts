@@ -3,7 +3,7 @@ import { calculateStatus, calculateTrend } from '@/lib/river-utils';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 interface USGSResponse {
   value: {
@@ -219,13 +219,16 @@ export async function GET(request: Request) {
     const missingSiteIds = allStationIds.filter((id) => !allSiteData.has(id));
 
     if (missingSiteIds.length > 0) {
-      const dvBatches = chunk(missingSiteIds, BATCH_SIZE);
+      // DV responses are smaller — use larger batches and more concurrency
+      const DV_BATCH_SIZE = 100;
+      const DV_CONCURRENT = 5;
+      const dvBatches = chunk(missingSiteIds, DV_BATCH_SIZE);
       console.log(`[cron] Phase 2 (DV): ${missingSiteIds.length} stations in ${dvBatches.length} batch(es)`);
       const dvStart = Date.now();
 
       const dvResults = await runWithConcurrency(
         dvBatches.map((batch) => () => fetchUSGSBatch(batch, 'dv', errors)),
-        MAX_CONCURRENT
+        DV_CONCURRENT
       );
 
       for (const batchMap of dvResults) {
