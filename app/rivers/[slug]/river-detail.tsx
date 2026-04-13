@@ -42,9 +42,9 @@ import { format } from 'date-fns';
 
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'rising')
-    return <TrendingUp  className="h-5 w-5 text-amber-400" aria-label="Rising" />;
+    return <TrendingUp  className="h-5 w-5 text-amber-600" aria-label="Rising" />;
   if (trend === 'falling')
-    return <TrendingDown className="h-5 w-5 text-blue-400"  aria-label="Falling" />;
+    return <TrendingDown className="h-5 w-5 text-blue-600"  aria-label="Falling" />;
   return <Minus className="h-5 w-5 text-muted-foreground"   aria-label="Stable" />;
 }
 
@@ -121,8 +121,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
           aria-live="polite"
           className={`
             fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3
-            rounded-xl shadow-2xl text-sm font-medium border animate-in fade-in
-            slide-in-from-bottom-4 duration-200
+            rounded-xl shadow-lg text-sm font-medium border
             ${toast.type === 'success'
               ? 'bg-emerald-600 border-emerald-500 text-white'
               : 'bg-red-600 border-red-500 text-white'}
@@ -158,7 +157,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />{region}
                     </span>
-                    <span className="text-muted-foreground/60">·</span>
+                    <span className="text-muted-foreground/60">&middot;</span>
                     <span>USGS {usgs_station_id}</span>
                   </div>
                 </div>
@@ -222,7 +221,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     sub: null,
                   },
                 ].map(({ icon: Icon, label, value, sub }) => (
-                  <div key={label} className="bg-secondary/40 rounded-xl px-3 py-3">
+                  <div key={label} className="bg-secondary rounded-xl px-3 py-3">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                       <Icon className="h-3.5 w-3.5" />
                       {label}
@@ -250,50 +249,51 @@ export function RiverDetail({ riverData }: { riverData: any }) {
             <CardContent className="px-5 pb-5">
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(215,23%,18%)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,15%,90%)" />
                   <XAxis
                     dataKey="time"
-                    tick={{ fontSize: 11, fill: 'hsl(215,16%,55%)' }}
+                    tick={{ fontSize: 11, fill: 'hsl(220,12%,50%)' }}
                     interval="preserveStartEnd"
-                    axisLine={{ stroke: 'hsl(215,23%,18%)' }}
+                    axisLine={{ stroke: 'hsl(220,15%,88%)' }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(215,16%,55%)' }}
+                    tick={{ fontSize: 11, fill: 'hsl(220,12%,50%)' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(220,38%,11%)',
-                      border: '1px solid hsl(215,23%,18%)',
+                      backgroundColor: 'white',
+                      border: '1px solid hsl(220,15%,88%)',
                       borderRadius: '8px',
-                      color: 'hsl(210,20%,96%)',
+                      color: 'hsl(220,30%,18%)',
                       fontSize: 12,
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                     }}
-                    itemStyle={{ color: 'hsl(210,20%,96%)' }}
+                    itemStyle={{ color: 'hsl(220,30%,18%)' }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: 12, color: 'hsl(215,16%,55%)', paddingTop: 8 }}
+                    wrapperStyle={{ fontSize: 12, color: 'hsl(220,12%,50%)', paddingTop: 8 }}
                   />
                   <Line
                     type="monotone"
                     dataKey="flow"
                     name="Flow (CFS)"
-                    stroke="hsl(0,55%,52%)"
+                    stroke="hsl(200,65%,38%)"
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 4, fill: 'hsl(0,55%,52%)' }}
+                    activeDot={{ r: 4, fill: 'hsl(200,65%,38%)' }}
                   />
                   {chartData.some((d: any) => d.temp !== null) && (
                     <Line
                       type="monotone"
                       dataKey="temp"
                       name="Temp (°F)"
-                      stroke="hsl(199,89%,48%)"
+                      stroke="hsl(155,30%,42%)"
                       strokeWidth={2}
                       dot={false}
-                      activeDot={{ r: 4, fill: 'hsl(199,89%,48%)' }}
+                      activeDot={{ r: 4, fill: 'hsl(155,30%,42%)' }}
                     />
                   )}
                 </LineChart>
@@ -312,7 +312,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add fishing notes, tips, or observations for this river…"
-                  className="min-h-[110px] mb-3 bg-background resize-none"
+                  className="min-h-[110px] mb-3 resize-none"
                 />
                 <Button onClick={handleSaveNote} disabled={isSavingNote} size="sm">
                   {isSavingNote ? 'Saving…' : 'Save Note'}

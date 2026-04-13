@@ -21,8 +21,8 @@ interface RiverCardProps {
 }
 
 function TrendIcon({ trend }: { trend: string }) {
-  if (trend === 'rising')  return <TrendingUp  className="h-4 w-4 text-amber-400" aria-label="Rising" />;
-  if (trend === 'falling') return <TrendingDown className="h-4 w-4 text-blue-400"  aria-label="Falling" />;
+  if (trend === 'rising')  return <TrendingUp  className="h-4 w-4 text-amber-600" aria-label="Rising" />;
+  if (trend === 'falling') return <TrendingDown className="h-4 w-4 text-blue-600"  aria-label="Falling" />;
   return <Minus className="h-4 w-4 text-muted-foreground" aria-label="Stable" />;
 }
 
@@ -39,8 +39,8 @@ export function RiverCard({
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
       <Card className={`
         h-full overflow-hidden transition-all duration-200
-        hover:shadow-lg hover:shadow-black/30 hover:-translate-y-0.5
-        border-border bg-card
+        hover:shadow-md hover:-translate-y-0.5
+        border-border bg-white
         border-l-4 ${getStatusBorderColor(status)}
       `}>
         <CardContent className="p-4 space-y-3">
@@ -89,7 +89,7 @@ export function RiverCard({
 
           {/* Flow + Temp stats */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-secondary/40 rounded-md px-3 py-2">
+            <div className="bg-secondary rounded-lg px-3 py-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
                 <Waves className="h-3 w-3" />
                 Flow
@@ -98,7 +98,7 @@ export function RiverCard({
                 {formatFlow(condition?.flow ?? null)}
               </div>
             </div>
-            <div className="bg-secondary/40 rounded-md px-3 py-2">
+            <div className="bg-secondary rounded-lg px-3 py-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
                 <Thermometer className="h-3 w-3" />
                 Temp
