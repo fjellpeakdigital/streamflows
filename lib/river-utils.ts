@@ -27,7 +27,7 @@ export function getStatusColor(status: RiverStatus): string {
     case 'elevated':     return 'bg-amber-100 text-amber-800 border-amber-200';
     case 'high':         return 'bg-red-100 text-red-800 border-red-200';
     case 'low':          return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'ice_affected': return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+    case 'ice_affected': return 'bg-slate-100 text-slate-600 border-slate-200';
     default:             return 'bg-zinc-100 text-zinc-600 border-zinc-200';
   }
 }
@@ -39,7 +39,7 @@ export function getStatusColorSolid(status: RiverStatus): string {
     case 'elevated':     return 'bg-amber-500 text-white border-transparent';
     case 'high':         return 'bg-red-500 text-white border-transparent';
     case 'low':          return 'bg-blue-500 text-white border-transparent';
-    case 'ice_affected': return 'bg-cyan-500 text-white border-transparent';
+    case 'ice_affected': return 'bg-slate-500 text-white border-transparent';
     default:             return 'bg-zinc-500 text-white border-transparent';
   }
 }
@@ -51,7 +51,7 @@ export function getStatusBorderColor(status: RiverStatus): string {
     case 'elevated':     return 'border-l-amber-500';
     case 'high':         return 'border-l-red-500';
     case 'low':          return 'border-l-blue-500';
-    case 'ice_affected': return 'border-l-cyan-500';
+    case 'ice_affected': return 'border-l-slate-400';
     default:             return 'border-l-zinc-400';
   }
 }
@@ -63,7 +63,7 @@ export function getStatusDotColor(status: RiverStatus): string {
     case 'elevated':     return 'bg-amber-500';
     case 'high':         return 'bg-red-500';
     case 'low':          return 'bg-blue-500';
-    case 'ice_affected': return 'bg-cyan-500';
+    case 'ice_affected': return 'bg-slate-400';
     default:             return 'bg-zinc-400';
   }
 }
@@ -74,7 +74,7 @@ export function getStatusLabel(status: RiverStatus): string {
     case 'elevated':     return 'Elevated';
     case 'high':         return 'High';
     case 'low':          return 'Low';
-    case 'ice_affected': return 'Ice Affected';
+    case 'ice_affected': return 'Gauge Not Responding';
     default:             return 'No Data';
   }
 }

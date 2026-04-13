@@ -95,7 +95,7 @@ export function RiversList({ rivers }: RiversListProps) {
             <option value="elevated">Elevated</option>
             <option value="high">High</option>
             <option value="low">Low</option>
-            <option value="ice_affected">Ice Affected</option>
+            <option value="ice_affected">Gauge Not Responding</option>
             <option value="unknown">No Data</option>
           </Select>
 
