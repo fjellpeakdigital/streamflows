@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import CheckinForm from '@/components/checkin-form';
 import CheckinFeed from '@/components/checkin-feed';
+import WeatherStrip from '@/components/weather-strip';
 import {
   LineChart,
   Line,
@@ -61,6 +62,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     latitude, longitude, optimal_flow_min, optimal_flow_max,
     current_condition, conditions, species, is_favorite, user_note, trend, user,
     checkins: initialCheckins = [],
+    eta, weather,
   } = riverData;
 
   const [isFavorite, setIsFavorite]       = useState(is_favorite);
@@ -191,6 +193,16 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                   <TrendIcon trend={trend} />
                   <span className="capitalize">{trend}</span>
                 </div>
+                {eta?.label && (
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border ${
+                    ['rising_to_optimal','falling_to_optimal','optimal'].includes(eta.type)
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : 'text-amber-700 bg-amber-50 border-amber-200'
+                  }`}>
+                    <Clock className="h-3 w-3" />
+                    {eta.label}
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -416,12 +428,24 @@ export function RiverDetail({ riverData }: { riverData: any }) {
             </Card>
           )}
 
+          {/* Weather forecast */}
+          {weather && (
+            <Card>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">5-Day Rain Forecast</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5">
+                <WeatherStrip forecast={weather} variant="full" />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Resources */}
           <Card>
             <CardHeader className="pb-2 px-5 pt-5">
               <CardTitle className="text-base font-semibold">Resources</CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
+            <CardContent className="px-5 pb-5 space-y-2">
               <a
                 href={`https://waterdata.usgs.gov/monitoring-location/${usgs_station_id}`}
                 target="_blank"
@@ -430,6 +454,12 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 <Button variant="outline" size="sm" className="w-full gap-2">
                   <ExternalLink className="h-3.5 w-3.5" />
                   USGS Station Data
+                </Button>
+              </a>
+              <a href={`/share/${riverData?.slug}`} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="w-full gap-2">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Share Conditions
                 </Button>
               </a>
             </CardContent>

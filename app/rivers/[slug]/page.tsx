@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { fetchWeatherForecast } from '@/lib/weather';
+import { calculateFlowEta } from '@/lib/flow-eta';
 import { RiverDetail } from './river-detail';
 
 export const dynamic = 'force-dynamic';
@@ -100,6 +102,12 @@ async function getRiver(slug: string) {
   // Read trend from the most recent condition (stored by the cron job)
   const trend = currentCondition?.trend ?? 'unknown';
 
+  const eta = calculateFlowEta(allConditions, river.optimal_flow_min, river.optimal_flow_max);
+
+  const weather = river.latitude && river.longitude
+    ? await fetchWeatherForecast(river.latitude, river.longitude)
+    : null;
+
   return {
     ...river,
     current_condition: currentCondition,
@@ -110,6 +118,8 @@ async function getRiver(slug: string) {
     trend,
     user,
     checkins,
+    eta,
+    weather,
   };
 }
 
