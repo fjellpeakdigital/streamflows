@@ -19,24 +19,40 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const supabase = createClient();
 
-    // PKCE flow: the auth callback already exchanged the code server-side,
-    // so a session should exist in cookies immediately.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function init() {
+      // --- PKCE flow ---
+      // Supabase appends ?code=XXX&type=recovery to the redirectTo URL.
+      // We exchange it client-side (no server callback needed).
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) { setReady(true); return; }
+      }
+
+      // --- Implicit / hash flow ---
+      // Supabase appends #access_token=XXX&refresh_token=YYY&type=recovery
+      const hash = window.location.hash;
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.slice(1));
+        const accessToken  = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type         = hashParams.get('type');
+        if (type === 'recovery' && accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (!error) { setReady(true); return; }
+        }
+      }
+
+      // --- Already have a session (e.g. user refreshed the page) ---
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) { setReady(true); return; }
 
-      // Fallback: listen for PASSWORD_RECOVERY event (hash-based / implicit flow).
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'PASSWORD_RECOVERY') { setReady(true); }
-      });
+      // Nothing worked — link is bad or expired.
+      setError('Reset link is invalid or has expired.');
+    }
 
-      // If neither fires after 4 seconds, the link is bad/expired.
-      const timer = setTimeout(() => {
-        subscription.unsubscribe();
-        setError('Reset link is invalid or has expired. Please request a new one.');
-      }, 4000);
-
-      return () => { subscription.unsubscribe(); clearTimeout(timer); };
-    });
+    init();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +110,7 @@ export default function ResetPasswordPage() {
                 </a>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Verifying reset link…</p>
+              <p className="text-sm text-muted-foreground">Checking reset link…</p>
             )}
           </div>
         ) : (
