@@ -28,14 +28,9 @@ interface USGSResponse {
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret via header or query param
+  // Verify cron secret via Authorization header
   const authHeader = request.headers.get('authorization');
-  const { searchParams } = new URL(request.url);
-  const querySecret = searchParams.get('secret');
-  const validAuth =
-    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
-    querySecret === process.env.CRON_SECRET;
-  if (process.env.CRON_SECRET && !validAuth) {
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -69,8 +64,8 @@ export async function GET(request: Request) {
         const data: USGSResponse = await response.json();
 
         if (!data.value?.timeSeries) {
-          const snippet = JSON.stringify(data).slice(0, 200);
-          errors.push(`${river.name}: no timeSeries — response: ${snippet}`);
+          console.warn(`No timeSeries for ${river.name} (USGS ${river.usgs_station_id})`);
+          errors.push(`${river.name}: no USGS data`);
           continue;
         }
 
@@ -129,8 +124,6 @@ export async function GET(request: Request) {
           }
         }
 
-        // Insert condition
-        // NOTE: trend column must be added via Supabase migration before including it here
         const { error: insertError } = await supabase.from('conditions').insert({
           river_id: river.id,
           timestamp,
@@ -138,6 +131,7 @@ export async function GET(request: Request) {
           temperature,
           gage_height: gageHeight,
           status,
+          trend,
         });
 
         if (insertError) {
@@ -148,6 +142,7 @@ export async function GET(request: Request) {
             flow,
             temperature,
             status,
+            trend,
           });
         }
 

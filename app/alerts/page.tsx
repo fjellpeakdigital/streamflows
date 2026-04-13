@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AlertsList } from './alerts-list';
+import { Bell } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,8 +41,11 @@ export default async function AlertsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">River Alerts</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-bold mb-1 flex items-center gap-3">
+          <Bell className="h-7 w-7 text-primary" />
+          River Alerts
+        </h1>
+        <p className="text-muted-foreground text-sm">
           Get notified when your rivers hit optimal conditions
         </p>
       </div>
