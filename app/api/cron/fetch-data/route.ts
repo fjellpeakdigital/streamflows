@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { calculateStatus, calculateTrend } from '@/lib/river-utils';
 import { NextResponse } from 'next/server';
 
@@ -40,7 +40,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const supabase = await createClient();
+    // Use service role key to bypass RLS for cron operations
+    const supabase = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // Get all rivers
     const { data: rivers, error: riversError } = await supabase
