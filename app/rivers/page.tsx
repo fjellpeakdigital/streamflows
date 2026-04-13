@@ -74,7 +74,7 @@ async function getStats(rivers: RiverWithCondition[]) {
   return { total: rivers.length, statusCounts };
 }
 
-const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected'];
+const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'unknown'];
 
 export default async function RiversPage() {
   const rivers = await getRivers();
