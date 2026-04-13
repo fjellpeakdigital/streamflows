@@ -210,13 +210,48 @@ function HeroSection() {
 }
 
 /* ────────────────────────────────────────────
-   Sections 2-8 — Placeholders (to be built)
+   Section 2 — Trust / Proof Bar
+   ──────────────────────────────────────────── */
+
+const trustItems = [
+  { icon: Map, value: '50+', label: 'New England Rivers' },
+  { icon: Shield, value: '6', label: 'States Covered' },
+  { icon: Radio, value: '15 min', label: 'Update Frequency' },
+  { icon: Activity, value: 'USGS', label: 'Powered by Live Data' },
+  { icon: SlidersHorizontal, value: 'Tuned', label: 'River-Specific Ranges' },
+];
+
+function TrustBar() {
+  return (
+    <section className="bg-white border-y border-border">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 lg:gap-8">
+          {trustItems.map(({ icon: Icon, value, label }) => (
+            <div key={label} className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/8 shrink-0">
+                <Icon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground leading-tight">{value}</div>
+                <div className="text-xs text-muted-foreground">{label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Sections 3-8 — Placeholders (to be built)
    ──────────────────────────────────────────── */
 
 export default function Home() {
   return (
     <div className="flex flex-col">
       <HeroSection />
+      <TrustBar />
     </div>
   );
 }
