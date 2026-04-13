@@ -28,12 +28,14 @@ interface USGSResponse {
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret for security
+  // Verify cron secret via header or query param
   const authHeader = request.headers.get('authorization');
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  const { searchParams } = new URL(request.url);
+  const querySecret = searchParams.get('secret');
+  const validAuth =
+    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+    querySecret === process.env.CRON_SECRET;
+  if (process.env.CRON_SECRET && !validAuth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
