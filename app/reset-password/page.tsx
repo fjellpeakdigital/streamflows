@@ -16,17 +16,26 @@ export default function ResetPasswordPage() {
   const [done, setDone]                     = useState(false);
   const [ready, setReady]                   = useState(false);
 
-  // In the PKCE flow (@supabase/ssr), the auth callback already exchanged
-  // the recovery code for a session before this page loaded. Just verify
-  // a session exists — no need to wait for PASSWORD_RECOVERY event.
   useEffect(() => {
     const supabase = createClient();
+
+    // PKCE flow: the auth callback already exchanged the code server-side,
+    // so a session should exist in cookies immediately.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true);
-      } else {
+      if (session) { setReady(true); return; }
+
+      // Fallback: listen for PASSWORD_RECOVERY event (hash-based / implicit flow).
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') { setReady(true); }
+      });
+
+      // If neither fires after 4 seconds, the link is bad/expired.
+      const timer = setTimeout(() => {
+        subscription.unsubscribe();
         setError('Reset link is invalid or has expired. Please request a new one.');
-      }
+      }, 4000);
+
+      return () => { subscription.unsubscribe(); clearTimeout(timer); };
     });
   }, []);
 
