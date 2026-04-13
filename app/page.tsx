@@ -691,7 +691,48 @@ function ComparisonSection() {
 }
 
 /* ────────────────────────────────────────────
-   Section 8 — Placeholder (to be built)
+   Section 8 — Final CTA
+   ──────────────────────────────────────────── */
+
+function FinalCTASection() {
+  return (
+    <section className="bg-white border-t border-border">
+      <div className="container mx-auto px-4 py-16 md:py-20">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-primary/10 mx-auto mb-5">
+            <Droplets className="h-7 w-7 text-primary" />
+          </div>
+
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            Ready to know your rivers?
+          </h2>
+          <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
+            Join guides and anglers across New England who check StreamFlows before
+            every trip. Browse live conditions now, or create a free account to
+            save favorites and set alerts.
+          </p>
+
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/rivers">
+              <Button size="lg" className="gap-2 text-base h-12 px-6">
+                Browse Live Conditions
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button size="lg" variant="outline" className="gap-2 text-base h-12 px-6">
+                Create Free Account
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Page Export
    ──────────────────────────────────────────── */
 
 export default function Home() {
@@ -704,6 +745,7 @@ export default function Home() {
       <FeaturesSection />
       <AudienceSection />
       <ComparisonSection />
+      <FinalCTASection />
     </div>
   );
 }
