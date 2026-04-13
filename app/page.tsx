@@ -535,7 +535,88 @@ function FeaturesSection() {
 }
 
 /* ────────────────────────────────────────────
-   Sections 6-8 — Placeholders (to be built)
+   Section 6 — Audience (For Guides / For Anglers)
+   ──────────────────────────────────────────── */
+
+const guidesBenefits = [
+  'Check conditions across multiple rivers before planning a client day',
+  'See at a glance which rivers are fishing well right now',
+  'Get alerts when your backup rivers hit optimal windows',
+  'Keep private notes on access points, hatches, and patterns',
+  'Stop wasting client time driving to blown-out water',
+];
+
+const anglersBenefits = [
+  'Track your favorite rivers in one dashboard instead of multiple USGS tabs',
+  'Understand whether a river is fishable without interpreting raw CFS',
+  'See flow trends so you can plan trips around rising or falling water',
+  'Get notified when your home water hits the sweet spot',
+  'Spend less time researching conditions and more time fishing',
+];
+
+function AudienceSection() {
+  return (
+    <section id="for-guides" className="bg-white border-y border-border">
+      <div className="container mx-auto px-4 py-16 md:py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+            Built for people who take fishing seriously
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Whether you&apos;re running trips or chasing your own fish, StreamFlows saves you time and puts you on better water.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* For Guides */}
+          <div className="bg-background rounded-2xl border border-border p-6 md:p-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex items-center justify-center h-11 w-11 rounded-lg bg-primary/8">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">For Guides</h3>
+                <p className="text-sm text-muted-foreground">Make better decisions for your clients</p>
+              </div>
+            </div>
+            <ul className="space-y-3">
+              {guidesBenefits.map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-primary shrink-0 mt-0.5" />
+                  <span className="text-sm text-foreground leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* For Anglers */}
+          <div className="bg-background rounded-2xl border border-border p-6 md:p-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex items-center justify-center h-11 w-11 rounded-lg bg-accent/10">
+                <Star className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">For Serious Anglers</h3>
+                <p className="text-sm text-muted-foreground">Stop guessing, start catching</p>
+              </div>
+            </div>
+            <ul className="space-y-3">
+              {anglersBenefits.map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-accent shrink-0 mt-0.5" />
+                  <span className="text-sm text-foreground leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Sections 7-8 — Placeholders (to be built)
    ──────────────────────────────────────────── */
 
 export default function Home() {
@@ -546,6 +627,7 @@ export default function Home() {
       <LiveSnapshotSection />
       <HowItWorksSection />
       <FeaturesSection />
+      <AudienceSection />
     </div>
   );
 }
