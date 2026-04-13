@@ -69,7 +69,8 @@ export async function GET(request: Request) {
         const data: USGSResponse = await response.json();
 
         if (!data.value?.timeSeries) {
-          console.log(`No data for ${river.name}`);
+          const snippet = JSON.stringify(data).slice(0, 200);
+          errors.push(`${river.name}: no timeSeries — response: ${snippet}`);
           continue;
         }
 
