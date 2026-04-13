@@ -130,7 +130,6 @@ export async function GET(request: Request) {
         }
 
         // Insert condition
-        // NOTE: trend column must be added via Supabase migration before including it here
         const { error: insertError } = await supabase.from('conditions').insert({
           river_id: river.id,
           timestamp,
@@ -138,6 +137,7 @@ export async function GET(request: Request) {
           temperature,
           gage_height: gageHeight,
           status,
+          trend,
         });
 
         if (insertError) {
