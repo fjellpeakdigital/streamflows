@@ -73,6 +73,28 @@ async function getRiver(slug: string) {
     user_note = noteData;
   }
 
+  // Get recent check-ins (public + user's own if logged in)
+  let checkinsQuery = supabase
+    .from('river_checkins')
+    .select('*')
+    .eq('river_id', river.id)
+    .order('fished_at', { ascending: false })
+    .limit(20);
+
+  if (user) {
+    checkinsQuery = checkinsQuery.or(`is_public.eq.true,user_id.eq.${user.id}`);
+  } else {
+    checkinsQuery = checkinsQuery.eq('is_public', true);
+  }
+
+  const { data: checkinsRaw } = await checkinsQuery;
+
+  const checkins = (checkinsRaw ?? []).map((c) => ({
+    ...c,
+    is_own: user?.id === c.user_id,
+    display_name: user?.id === c.user_id ? 'You' : 'Angler',
+  }));
+
   const allConditions = conditions || [];
   const currentCondition = allConditions[allConditions.length - 1];
   // Read trend from the most recent condition (stored by the cron job)
@@ -87,6 +109,7 @@ async function getRiver(slug: string) {
     user_note,
     trend,
     user,
+    checkins,
   };
 }
 

@@ -2,6 +2,29 @@ export type RiverStatus = 'optimal' | 'elevated' | 'high' | 'low' | 'ice_affecte
 export type Species = 'trout' | 'salmon' | 'bass' | 'pike' | 'shad' | 'other';
 export type AlertType = 'optimal_flow' | 'flow_threshold' | 'temperature';
 export type FlowTrend = 'rising' | 'falling' | 'stable' | 'unknown';
+export type FlowAccuracy = 'accurate' | 'inaccurate' | 'unsure';
+export type FishingRating = 'poor' | 'fair' | 'good' | 'excellent';
+
+export interface CheckIn {
+  id: string;
+  river_id: string;
+  user_id: string;
+  /** Did the gauge reading match what the angler observed on the water? */
+  flow_confirmed: FlowAccuracy;
+  /** Overall fishing conditions rating */
+  conditions_rating: FishingRating;
+  /** Species the angler was targeting / caught */
+  species_caught: string[] | null;
+  /** Flies, patterns, or techniques that worked */
+  flies_working: string | null;
+  /** Free-form notes */
+  notes: string | null;
+  /** Whether this check-in is visible to other users */
+  is_public: boolean;
+  /** When the angler actually fished (defaults to created_at) */
+  fished_at: string;
+  created_at: string;
+}
 
 export interface River {
   id: string;
@@ -65,6 +88,11 @@ export interface UserAlert {
 }
 
 // Extended types with relations
+export interface CheckInWithMeta extends CheckIn {
+  /** Truncated display name derived server-side from the user's email */
+  display_name: string;
+}
+
 export interface RiverWithCondition extends River {
   current_condition?: Condition;
   species?: RiverSpecies[];
@@ -105,6 +133,11 @@ export interface Database {
         Row: UserAlert;
         Insert: Omit<UserAlert, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<UserAlert, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      river_checkins: {
+        Row: CheckIn;
+        Insert: Omit<CheckIn, 'id' | 'created_at'>;
+        Update: Partial<Omit<CheckIn, 'id' | 'created_at'>>;
       };
     };
   };
