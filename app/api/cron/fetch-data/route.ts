@@ -35,7 +35,7 @@ interface SiteData {
   timestamp: string;
 }
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 50;
 const MAX_CONCURRENT = 3;
 
 /** Split an array into chunks of a given size */
@@ -84,9 +84,11 @@ async function fetchUSGSBatch(
   const usgsUrl = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all`;
 
   try {
+    console.log(`[cron] Fetching USGS batch: ${siteIds.length} sites, URL length: ${usgsUrl.length}`);
     const response = await fetch(usgsUrl);
     if (!response.ok) {
-      errors.push(`USGS batch fetch failed (HTTP ${response.status}) for ${siteIds.length} sites`);
+      const body = await response.text().catch(() => '');
+      errors.push(`USGS batch fetch failed (HTTP ${response.status}) for ${siteIds.length} sites: ${body.slice(0, 200)}`);
       return siteDataMap;
     }
 
@@ -96,6 +98,8 @@ async function fetchUSGSBatch(
       errors.push(`USGS batch: no timeSeries in response for ${siteIds.length} sites`);
       return siteDataMap;
     }
+
+    console.log(`[cron] USGS batch returned ${data.value.timeSeries.length} time series for ${siteIds.length} requested sites`);
 
     // Group time series by site ID
     const siteSeriesMap = new Map<string, typeof data.value.timeSeries>();
@@ -238,10 +242,11 @@ export async function GET(request: Request) {
       trend: string;
     }> = [];
 
+    const noDataRivers: string[] = [];
     for (const river of rivers) {
       const siteData = allSiteData.get(river.usgs_station_id);
       if (!siteData) {
-        errors.push(`${river.name}: no data returned from USGS`);
+        noDataRivers.push(river.name);
         continue;
       }
 
@@ -318,11 +323,16 @@ export async function GET(request: Request) {
 
     const totalTime = Date.now() - startTime;
     console.log(`[cron] Complete: ${results.length}/${rivers.length} rivers in ${totalTime}ms`);
+    if (noDataRivers.length > 0) {
+      console.log(`[cron] ${noDataRivers.length} rivers had no USGS IV data (may be seasonal, daily-only, or inactive)`);
+    }
 
     return NextResponse.json({
       success: true,
       total_rivers: rivers.length,
       processed: results.length,
+      no_data_count: noDataRivers.length,
+      no_data_rivers: noDataRivers,
       duration_ms: totalTime,
       errors,
       results,
