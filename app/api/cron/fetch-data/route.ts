@@ -58,6 +58,7 @@ export async function GET(request: Request) {
     console.log(`Fetching data for ${rivers.length} rivers`);
 
     const results = [];
+    const errors: string[] = [];
 
     for (const river of rivers) {
       try {
@@ -151,14 +152,18 @@ export async function GET(request: Request) {
 
         // Small delay to avoid rate limiting
         await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error(`Error processing ${river.name}:`, error);
+      } catch (error: any) {
+        const msg = `${river.name}: ${error?.message ?? String(error)}`;
+        console.error('Error processing river:', msg);
+        errors.push(msg);
       }
     }
 
     return NextResponse.json({
       success: true,
+      total_rivers: rivers.length,
       processed: results.length,
+      errors,
       results,
     });
   } catch (error: any) {
