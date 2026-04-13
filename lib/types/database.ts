@@ -99,6 +99,11 @@ export interface RiverWithCondition extends River {
   is_favorite?: boolean;
   user_note?: UserNote;
   trend?: FlowTrend;
+  /** Aggregated angler rating from public check-ins in the last 7 days */
+  angler_rating?: {
+    label: FishingRating;
+    count: number;
+  };
 }
 
 export interface Database {

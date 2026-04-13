@@ -41,6 +41,30 @@ async function getRivers() {
     favorites = favData || [];
   }
 
+  // Fetch all public check-ins from the last 7 days in one query
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: recentCheckins } = await supabase
+    .from('river_checkins')
+    .select('river_id, conditions_rating')
+    .eq('is_public', true)
+    .gte('fished_at', sevenDaysAgo.toISOString());
+
+  // Aggregate: score each rating, average per river → back to label
+  const SCORE: Record<string, number> = { poor: 1, fair: 2, good: 3, excellent: 4 };
+  const LABEL: string[] = ['poor', 'poor', 'fair', 'good', 'excellent']; // index 0 unused
+
+  const checkinMap = new Map<string, { total: number; count: number }>();
+  for (const c of recentCheckins ?? []) {
+    const score = SCORE[c.conditions_rating];
+    if (!score) continue;
+    const entry = checkinMap.get(c.river_id) ?? { total: 0, count: 0 };
+    entry.total += score;
+    entry.count += 1;
+    checkinMap.set(c.river_id, entry);
+  }
+
   const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
     const riverConditions = conditions?.filter((c) => c.river_id === river.id) || [];
     const currentCondition = riverConditions[0];
@@ -57,7 +81,12 @@ async function getRivers() {
       );
     }
 
-    return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite };
+    const agg = checkinMap.get(river.id);
+    const angler_rating = agg
+      ? { label: LABEL[Math.round(agg.total / agg.count)] as any, count: agg.count }
+      : undefined;
+
+    return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };
   });
 
   return riversWithConditions;
