@@ -3,168 +3,149 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { Droplets, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail]                   = useState('');
+  const [password, setPassword]             = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState<string | null>(null);
+  const [success, setSuccess]               = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
-      setLoading(false);
       return;
     }
-
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
+      if (error) { setError(error.message); return; }
       setSuccess(true);
-      setTimeout(() => {
-        router.push('/rivers');
-        router.refresh();
-      }, 2000);
-    } catch (err) {
+      setTimeout(() => { router.push('/rivers'); router.refresh(); }, 2500);
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-4 text-green-600">
-                  Account Created!
-                </h2>
-                <p className="text-muted-foreground">
-                  Redirecting you to the rivers page...
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-md mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">
-              Sign Up for StreamFlows
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
+
+        {/* Logo mark */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+            <Droplets className="h-6 w-6 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track rivers and get flow alerts for free
+          </p>
+        </div>
+
+        {/* Success state */}
+        {success ? (
+          <div className="bg-card border border-emerald-500/30 rounded-2xl p-8 text-center shadow-xl shadow-black/20">
+            <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+            <h2 className="text-lg font-bold mb-2">Account created!</h2>
+            <p className="text-sm text-muted-foreground">
+              Redirecting you to the rivers dashboard…
+            </p>
+          </div>
+        ) : (
+          /* Form card */
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-xl shadow-black/20">
             <form onSubmit={handleSignup} className="space-y-4">
+
               {error && (
-                <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md p-3 text-sm">
+                <div className="flex items-start gap-2.5 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   {error}
                 </div>
               )}
 
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium mb-2"
-                >
+                <label htmlFor="email" className="block text-sm font-medium mb-1.5">
                   Email
                 </label>
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
+                  className="bg-background h-11"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium mb-2"
-                >
+                <label htmlFor="password" className="block text-sm font-medium mb-1.5">
                   Password
                 </label>
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Min. 6 characters"
                   required
+                  className="bg-background h-11"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="confirm-password"
-                  className="block text-sm font-medium mb-2"
-                >
+                <label htmlFor="confirm-password" className="block text-sm font-medium mb-1.5">
                   Confirm Password
                 </label>
                 <Input
                   id="confirm-password"
                   type="password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Re-enter password"
                   required
+                  className="bg-background h-11"
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating account...' : 'Sign Up'}
+              <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+                {loading ? 'Creating account…' : 'Create Account'}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <p className="text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/login" className="text-primary hover:underline">
-                  Log in
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            <p className="mt-5 text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary hover:underline font-medium">
+                Log in
+              </Link>
+            </p>
+          </div>
+        )}
+
       </div>
     </div>
   );

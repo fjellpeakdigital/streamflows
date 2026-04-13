@@ -14,267 +14,331 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
 import {
   getStatusColor,
   getStatusLabel,
   formatFlow,
   formatTemperature,
-  getTrendIcon,
 } from '@/lib/river-utils';
-import { Heart, ArrowLeft, MapPin, Calendar } from 'lucide-react';
+import {
+  Heart,
+  ArrowLeft,
+  MapPin,
+  Clock,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Fish,
+  Waves,
+  Thermometer,
+  Gauge,
+} from 'lucide-react';
 import { format } from 'date-fns';
+
+function TrendIcon({ trend }: { trend: string }) {
+  if (trend === 'rising')
+    return <TrendingUp  className="h-5 w-5 text-amber-400" aria-label="Rising" />;
+  if (trend === 'falling')
+    return <TrendingDown className="h-5 w-5 text-blue-400"  aria-label="Falling" />;
+  return <Minus className="h-5 w-5 text-muted-foreground"   aria-label="Stable" />;
+}
+
+interface Toast {
+  type: 'success' | 'error';
+  message: string;
+}
 
 export function RiverDetail({ riverData }: { riverData: any }) {
   const {
-    id,
-    name,
-    region,
-    description,
-    usgs_station_id,
-    latitude,
-    longitude,
-    optimal_flow_min,
-    optimal_flow_max,
-    current_condition,
-    conditions,
-    species,
-    is_favorite,
-    user_note,
-    trend,
-    user,
+    id, name, region, description, usgs_station_id,
+    latitude, longitude, optimal_flow_min, optimal_flow_max,
+    current_condition, conditions, species, is_favorite, user_note, trend, user,
   } = riverData;
 
-  const [isFavorite, setIsFavorite] = useState(is_favorite);
-  const [note, setNote] = useState(user_note?.note || '');
+  const [isFavorite, setIsFavorite]   = useState(is_favorite);
+  const [note, setNote]               = useState(user_note?.note || '');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [toast, setToast]             = useState<Toast | null>(null);
 
-  const status = current_condition?.status || 'low';
+  const status = current_condition?.status || 'unknown';
 
-  // Prepare chart data
   const chartData = conditions.map((c: any) => ({
-    timestamp: format(new Date(c.timestamp), 'HH:mm'),
+    time: format(new Date(c.timestamp), 'HH:mm'),
     flow: c.flow,
-    temperature: c.temperature,
+    temp: c.temperature,
   }));
 
-  const handleToggleFavorite = async () => {
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
+  const showToast = (t: Toast) => {
+    setToast(t);
+    setTimeout(() => setToast(null), 3500);
+  };
 
+  const handleToggleFavorite = async () => {
+    if (!user) { window.location.href = '/login'; return; }
     try {
-      const response = await fetch('/api/favorites', {
+      const res = await fetch('/api/favorites', {
         method: isFavorite ? 'DELETE' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ river_id: id }),
       });
-
-      if (response.ok) {
-        setIsFavorite(!isFavorite);
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
+      if (res.ok) setIsFavorite((f: boolean) => !f);
+    } catch { /* silent */ }
   };
 
   const handleSaveNote = async () => {
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
-
+    if (!user) { window.location.href = '/login'; return; }
     setIsSavingNote(true);
     try {
-      const response = await fetch('/api/notes', {
+      const res = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ river_id: id, note }),
       });
-
-      if (response.ok) {
-        alert('Note saved successfully!');
+      if (res.ok) {
+        showToast({ type: 'success', message: 'Note saved successfully.' });
+      } else {
+        showToast({ type: 'error', message: 'Failed to save note. Try again.' });
       }
-    } catch (error) {
-      console.error('Error saving note:', error);
+    } catch {
+      showToast({ type: 'error', message: 'An error occurred.' });
     } finally {
       setIsSavingNote(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`
+            fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3
+            rounded-xl shadow-2xl text-sm font-medium border animate-in fade-in
+            slide-in-from-bottom-4 duration-200
+            ${toast.type === 'success'
+              ? 'bg-emerald-600 border-emerald-500 text-white'
+              : 'bg-red-600 border-red-500 text-white'}
+          `}
+        >
+          {toast.type === 'success'
+            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+            : <AlertCircle   className="h-4 w-4 shrink-0" />}
+          {toast.message}
+        </div>
+      )}
+
+      {/* Back link */}
       <Link href="/rivers">
-        <Button variant="ghost" className="mb-4 gap-2">
+        <Button variant="ghost" size="sm" className="mb-5 gap-2 text-muted-foreground hover:text-foreground -ml-2">
           <ArrowLeft className="h-4 w-4" />
-          Back to Rivers
+          All Rivers
         </Button>
       </Link>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Header */}
+      <div className="grid lg:grid-cols-3 gap-5">
+
+        {/* ── Left column ── */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Header card */}
           <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-3xl mb-2">{name}</CardTitle>
-                  <div className="flex items-center gap-4 text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {region}
-                    </div>
-                    <div>USGS: {usgs_station_id}</div>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl font-bold leading-tight mb-1">{name}</h1>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />{region}
+                    </span>
+                    <span className="text-muted-foreground/60">·</span>
+                    <span>USGS {usgs_station_id}</span>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleToggleFavorite}
+                  aria-label={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+                  className="shrink-0"
                 >
-                  <Heart
-                    className={`h-6 w-6 ${
-                      isFavorite
-                        ? 'fill-primary text-primary'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
+                  <Heart className={`h-5 w-5 transition-colors ${
+                    isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground hover:text-primary'
+                  }`} />
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+
               {description && (
-                <p className="text-muted-foreground mb-4">{description}</p>
+                <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{description}</p>
               )}
 
-              <div className="flex items-center gap-4 flex-wrap">
-                <Badge className={`${getStatusColor(status)} text-lg px-4 py-2`}>
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
+                <Badge className={`${getStatusColor(status)} px-3 py-1 text-sm font-semibold`}>
                   {getStatusLabel(status)}
                 </Badge>
-                <div className="flex items-center gap-2 text-2xl">
-                  <span>{getTrendIcon(trend)}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {trend}
-                  </span>
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <TrendIcon trend={trend} />
+                  <span className="capitalize">{trend}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Current Conditions */}
+          {/* Current conditions */}
           <Card>
-            <CardHeader>
-              <CardTitle>Current Conditions</CardTitle>
+            <CardHeader className="pb-2 px-5 pt-5">
+              <CardTitle className="text-base font-semibold">Current Conditions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Flow</div>
-                  <div className="text-3xl font-bold">
-                    {formatFlow(current_condition?.flow || null)}
-                  </div>
-                  {optimal_flow_min && optimal_flow_max && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Optimal: {optimal_flow_min}-{optimal_flow_max} CFS
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">
-                    Temperature
-                  </div>
-                  <div className="text-3xl font-bold">
-                    {formatTemperature(current_condition?.temperature || null)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">
-                    Gage Height
-                  </div>
-                  <div className="text-3xl font-bold">
-                    {current_condition?.gage_height
+            <CardContent className="px-5 pb-5">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  {
+                    icon: Waves,
+                    label: 'Flow',
+                    value: formatFlow(current_condition?.flow ?? null),
+                    sub: optimal_flow_min && optimal_flow_max
+                      ? `Optimal ${optimal_flow_min}–${optimal_flow_max} CFS`
+                      : null,
+                  },
+                  {
+                    icon: Thermometer,
+                    label: 'Temperature',
+                    value: formatTemperature(current_condition?.temperature ?? null),
+                    sub: null,
+                  },
+                  {
+                    icon: Gauge,
+                    label: 'Gage Height',
+                    value: current_condition?.gage_height
                       ? `${current_condition.gage_height.toFixed(2)} ft`
-                      : 'N/A'}
+                      : 'N/A',
+                    sub: null,
+                  },
+                ].map(({ icon: Icon, label, value, sub }) => (
+                  <div key={label} className="bg-secondary/40 rounded-xl px-3 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </div>
+                    <div className="text-xl font-bold">{value}</div>
+                    {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
                   </div>
-                </div>
+                ))}
               </div>
 
               {current_condition && (
-                <div className="mt-4 flex items-center gap-1 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  Last updated:{' '}
-                  {format(
-                    new Date(current_condition.timestamp),
-                    'MMM d, yyyy h:mm a'
-                  )}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
+                  <Clock className="h-3.5 w-3.5" />
+                  Updated {format(new Date(current_condition.timestamp), 'MMM d, yyyy h:mm a')}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Flow Chart */}
+          {/* 24-hour chart */}
           <Card>
-            <CardHeader>
-              <CardTitle>24-Hour Flow Chart</CardTitle>
+            <CardHeader className="pb-2 px-5 pt-5">
+              <CardTitle className="text-base font-semibold">24-Hour Flow Chart</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+            <CardContent className="px-5 pb-5">
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(215,23%,18%)" />
                   <XAxis
-                    dataKey="timestamp"
-                    tick={{ fontSize: 12 }}
+                    dataKey="time"
+                    tick={{ fontSize: 11, fill: 'hsl(215,16%,55%)' }}
                     interval="preserveStartEnd"
+                    axisLine={{ stroke: 'hsl(215,23%,18%)' }}
+                    tickLine={false}
                   />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: 'hsl(215,16%,55%)' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(220,38%,11%)',
+                      border: '1px solid hsl(215,23%,18%)',
+                      borderRadius: '8px',
+                      color: 'hsl(210,20%,96%)',
+                      fontSize: 12,
+                    }}
+                    itemStyle={{ color: 'hsl(210,20%,96%)' }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, color: 'hsl(215,16%,55%)', paddingTop: 8 }}
+                  />
                   <Line
                     type="monotone"
                     dataKey="flow"
-                    stroke="#FF6B6B"
-                    strokeWidth={2}
                     name="Flow (CFS)"
+                    stroke="hsl(0,55%,52%)"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: 'hsl(0,55%,52%)' }}
                   />
+                  {chartData.some((d: any) => d.temp !== null) && (
+                    <Line
+                      type="monotone"
+                      dataKey="temp"
+                      name="Temp (°F)"
+                      stroke="hsl(199,89%,48%)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: 'hsl(199,89%,48%)' }}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Guide Notes */}
+          {/* Guide notes */}
           {user && (
             <Card>
-              <CardHeader>
-                <CardTitle>My Notes</CardTitle>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">My Notes</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-5 pb-5">
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add your fishing notes, tips, or observations..."
-                  className="min-h-[120px] mb-4"
+                  placeholder="Add fishing notes, tips, or observations for this river…"
+                  className="min-h-[110px] mb-3 bg-background resize-none"
                 />
-                <Button onClick={handleSaveNote} disabled={isSavingNote}>
-                  {isSavingNote ? 'Saving...' : 'Save Note'}
+                <Button onClick={handleSaveNote} disabled={isSavingNote} size="sm">
+                  {isSavingNote ? 'Saving…' : 'Save Note'}
                 </Button>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* ── Sidebar ── */}
+        <div className="space-y-5">
+
           {/* Species */}
           {species.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle>Species</CardTitle>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Fish className="h-4 w-4 text-primary" />
+                  Species
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-5 pb-5">
                 <div className="flex flex-wrap gap-2">
                   {species.map((s: any) => (
-                    <Badge key={s.id} variant="secondary">
-                      {s.species.charAt(0).toUpperCase() + s.species.slice(1)}
+                    <Badge key={s.id} variant="secondary" className="capitalize">
+                      {s.species}
                     </Badge>
                   ))}
                 </div>
@@ -285,52 +349,49 @@ export function RiverDetail({ riverData }: { riverData: any }) {
           {/* Location */}
           {latitude && longitude && (
             <Card>
-              <CardHeader>
-                <CardTitle>Location</CardTitle>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  Location
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Latitude:</span>{' '}
-                    {latitude}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Longitude:</span>{' '}
-                    {longitude}
-                  </div>
-                  <a
-                    href={`https://www.google.com/maps?q=${latitude},${longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-2"
-                  >
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <MapPin className="h-4 w-4" />
-                      View on Map
-                    </Button>
-                  </a>
+              <CardContent className="px-5 pb-5 space-y-2 text-sm">
+                <div className="text-muted-foreground">
+                  {latitude}, {longitude}
                 </div>
+                <a
+                  href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline" size="sm" className="gap-2 w-full mt-1">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open in Maps
+                  </Button>
+                </a>
               </CardContent>
             </Card>
           )}
 
-          {/* USGS Link */}
+          {/* Resources */}
           <Card>
-            <CardHeader>
-              <CardTitle>Resources</CardTitle>
+            <CardHeader className="pb-2 px-5 pt-5">
+              <CardTitle className="text-base font-semibold">Resources</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="px-5 pb-5">
               <a
                 href={`https://waterdata.usgs.gov/monitoring-location/${usgs_station_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Button variant="outline" className="w-full">
-                  View on USGS
+                <Button variant="outline" size="sm" className="w-full gap-2">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  USGS Station Data
                 </Button>
               </a>
             </CardContent>
           </Card>
+
         </div>
       </div>
     </div>

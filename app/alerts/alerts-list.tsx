@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Trash2 } from 'lucide-react';
+import { Bell, BellOff, Trash2, Plus, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Alert {
@@ -16,11 +16,7 @@ interface Alert {
   threshold_value: number | null;
   is_active: boolean;
   created_at: string;
-  rivers: {
-    id: string;
-    name: string;
-    slug: string;
-  };
+  rivers: { id: string; name: string; slug: string };
 }
 
 interface River {
@@ -34,21 +30,27 @@ interface AlertsListProps {
   rivers: River[];
 }
 
+function alertTypeLabel(type: string, threshold: number | null) {
+  if (type === 'optimal_flow')    return 'Optimal flow conditions';
+  if (type === 'flow_threshold')  return `Flow threshold: ${threshold} CFS`;
+  if (type === 'temperature')     return `Temperature: ${threshold}°F`;
+  return type;
+}
+
 export function AlertsList({ alerts: initialAlerts, rivers }: AlertsListProps) {
   const router = useRouter();
-  const [alerts, setAlerts] = useState(initialAlerts);
+  const [alerts, setAlerts]               = useState(initialAlerts);
   const [selectedRiver, setSelectedRiver] = useState('');
-  const [alertType, setAlertType] = useState('optimal_flow');
-  const [threshold, setThreshold] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [alertType, setAlertType]         = useState('optimal_flow');
+  const [threshold, setThreshold]         = useState('');
+  const [loading, setLoading]             = useState(false);
 
   const handleCreateAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRiver) return;
-
     setLoading(true);
     try {
-      const response = await fetch('/api/alerts', {
+      const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,14 +59,13 @@ export function AlertsList({ alerts: initialAlerts, rivers }: AlertsListProps) {
           threshold_value: threshold ? parseFloat(threshold) : null,
         }),
       });
-
-      if (response.ok) {
+      if (res.ok) {
         setSelectedRiver('');
         setThreshold('');
         router.refresh();
       }
-    } catch (error) {
-      console.error('Error creating alert:', error);
+    } catch (err) {
+      console.error('Error creating alert:', err);
     } finally {
       setLoading(false);
     }
@@ -72,187 +73,192 @@ export function AlertsList({ alerts: initialAlerts, rivers }: AlertsListProps) {
 
   const handleDeleteAlert = async (alertId: string) => {
     try {
-      const response = await fetch('/api/alerts', {
+      const res = await fetch('/api/alerts', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ alert_id: alertId }),
       });
-
-      if (response.ok) {
-        setAlerts(alerts.filter((a) => a.id !== alertId));
-      }
-    } catch (error) {
-      console.error('Error deleting alert:', error);
+      if (res.ok) setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    } catch (err) {
+      console.error('Error deleting alert:', err);
     }
   };
 
   const handleToggleAlert = async (alertId: string, isActive: boolean) => {
     try {
-      const response = await fetch('/api/alerts', {
+      const res = await fetch('/api/alerts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ alert_id: alertId, is_active: !isActive }),
       });
-
-      if (response.ok) {
-        setAlerts(
-          alerts.map((a) =>
-            a.id === alertId ? { ...a, is_active: !isActive } : a
-          )
+      if (res.ok) {
+        setAlerts((prev) =>
+          prev.map((a) => (a.id === alertId ? { ...a, is_active: !isActive } : a))
         );
       }
-    } catch (error) {
-      console.error('Error toggling alert:', error);
+    } catch (err) {
+      console.error('Error toggling alert:', err);
     }
   };
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {alerts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No alerts configured yet. Create one to get started!
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Bell className="h-4 w-4 text-primary" />
-                        <span className="font-semibold">
-                          {alert.rivers.name}
-                        </span>
-                        <Badge variant={alert.is_active ? 'default' : 'secondary'}>
-                          {alert.is_active ? 'Active' : 'Paused'}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {alert.alert_type === 'optimal_flow' && 'Optimal flow conditions'}
-                        {alert.alert_type === 'flow_threshold' &&
-                          `Flow ${alert.threshold_value} CFS`}
-                        {alert.alert_type === 'temperature' &&
-                          `Temperature ${alert.threshold_value}°F`}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          handleToggleAlert(alert.id, alert.is_active)
-                        }
-                      >
-                        {alert.is_active ? 'Pause' : 'Activate'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteAlert(alert.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+
+      {/* ── Alert list ── */}
+      <div className="lg:col-span-2 space-y-4">
+        <h2 className="text-lg font-semibold">Your Alerts</h2>
+
+        {alerts.length === 0 ? (
+          <div className="bg-card border border-border rounded-xl p-10 text-center">
+            <Bell className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No alerts yet.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Create one on the right to get notified when conditions are prime.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`
+                  flex items-center gap-4 bg-card border rounded-xl px-4 py-4 transition-colors
+                  ${alert.is_active ? 'border-border' : 'border-border/50 opacity-60'}
+                `}
+              >
+                {/* Icon */}
+                <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0
+                  ${alert.is_active ? 'bg-primary/10' : 'bg-secondary/40'}`}>
+                  {alert.is_active
+                    ? <Bell className="h-4 w-4 text-primary" />
+                    : <BellOff className="h-4 w-4 text-muted-foreground" />}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm truncate">{alert.rivers.name}</span>
+                    <Badge
+                      variant={alert.is_active ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {alert.is_active ? 'Active' : 'Paused'}
+                    </Badge>
                   </div>
-                ))}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {alertTypeLabel(alert.alert_type, alert.threshold_value)}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => handleToggleAlert(alert.id, alert.is_active)}
+                  >
+                    {alert.is_active ? 'Pause' : 'Resume'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    aria-label="Delete alert"
+                    onClick={() => handleDeleteAlert(alert.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div>
+      {/* ── Create form ── */}
+      <div className="space-y-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Create Alert</CardTitle>
+          <CardHeader className="pb-3 pt-5 px-5">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" />
+              Create Alert
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pb-5">
             <form onSubmit={handleCreateAlert} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  River
-                </label>
+                <label className="block text-sm font-medium mb-1.5">River</label>
                 <Select
                   value={selectedRiver}
                   onChange={(e) => setSelectedRiver(e.target.value)}
                   required
+                  className="bg-background"
                 >
-                  <option value="">Select a river</option>
-                  {rivers.map((river) => (
-                    <option key={river.id} value={river.id}>
-                      {river.name}
-                    </option>
+                  <option value="">Select a river…</option>
+                  {rivers.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </Select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Alert Type
-                </label>
+                <label className="block text-sm font-medium mb-1.5">Alert Type</label>
                 <Select
                   value={alertType}
                   onChange={(e) => setAlertType(e.target.value)}
+                  className="bg-background"
                 >
                   <option value="optimal_flow">Optimal Flow</option>
-                  <option value="flow_threshold">Flow Threshold</option>
-                  <option value="temperature">Temperature</option>
+                  <option value="flow_threshold">Flow Threshold (CFS)</option>
+                  <option value="temperature">Temperature (°F)</option>
                 </Select>
               </div>
 
               {(alertType === 'flow_threshold' || alertType === 'temperature') && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Threshold Value
+                  <label className="block text-sm font-medium mb-1.5">
+                    {alertType === 'temperature' ? 'Threshold (°F)' : 'Threshold (CFS)'}
                   </label>
                   <Input
                     type="number"
                     step="0.1"
                     value={threshold}
                     onChange={(e) => setThreshold(e.target.value)}
-                    placeholder={
-                      alertType === 'temperature' ? 'e.g., 65' : 'e.g., 500'
-                    }
+                    placeholder={alertType === 'temperature' ? 'e.g. 65' : 'e.g. 500'}
                     required
+                    className="bg-background"
                   />
                 </div>
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Alert'}
+                {loading ? 'Creating…' : 'Create Alert'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>About Alerts</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>
-              <strong>Optimal Flow:</strong> Get notified when flow is within
-              the optimal range
-            </p>
-            <p>
-              <strong>Flow Threshold:</strong> Alert when flow crosses a specific
-              value
-            </p>
-            <p>
-              <strong>Temperature:</strong> Alert when water temperature reaches
-              a threshold
-            </p>
+        {/* Info card */}
+        <Card className="border-border/50">
+          <CardContent className="px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Info className="h-4 w-4" />
+              Alert types
+            </div>
+            {[
+              { label: 'Optimal Flow', desc: 'Notifies when flow is within the optimal range for that river.' },
+              { label: 'Flow Threshold', desc: 'Fires when flow crosses a specific CFS value.' },
+              { label: 'Temperature', desc: 'Fires when water temp reaches your target.' },
+            ].map(({ label, desc }) => (
+              <div key={label} className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground/80">{label}:</span> {desc}
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }

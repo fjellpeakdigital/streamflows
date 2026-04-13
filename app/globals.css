@@ -1,100 +1,93 @@
 @import "tailwindcss";
 
-/* Map CSS custom properties to Tailwind v4 theme tokens so utilities like
-   border-border, bg-background, text-foreground etc. are valid. */
+/* Map CSS custom properties to Tailwind v4 theme tokens */
 @theme inline {
-  --color-background:        hsl(var(--background));
-  --color-foreground:        hsl(var(--foreground));
-  --color-card:              hsl(var(--card));
-  --color-card-foreground:   hsl(var(--card-foreground));
-  --color-popover:           hsl(var(--popover));
-  --color-popover-foreground:hsl(var(--popover-foreground));
-  --color-primary:           hsl(var(--primary));
-  --color-primary-foreground:hsl(var(--primary-foreground));
-  --color-secondary:         hsl(var(--secondary));
+  --color-background:          hsl(var(--background));
+  --color-foreground:          hsl(var(--foreground));
+  --color-card:                hsl(var(--card));
+  --color-card-foreground:     hsl(var(--card-foreground));
+  --color-popover:             hsl(var(--popover));
+  --color-popover-foreground:  hsl(var(--popover-foreground));
+  --color-primary:             hsl(var(--primary));
+  --color-primary-foreground:  hsl(var(--primary-foreground));
+  --color-secondary:           hsl(var(--secondary));
   --color-secondary-foreground:hsl(var(--secondary-foreground));
-  --color-muted:             hsl(var(--muted));
-  --color-muted-foreground:  hsl(var(--muted-foreground));
-  --color-accent:            hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive:       hsl(var(--destructive));
+  --color-muted:               hsl(var(--muted));
+  --color-muted-foreground:    hsl(var(--muted-foreground));
+  --color-accent:              hsl(var(--accent));
+  --color-accent-foreground:   hsl(var(--accent-foreground));
+  --color-destructive:         hsl(var(--destructive));
   --color-destructive-foreground:hsl(var(--destructive-foreground));
-  --color-border:            hsl(var(--border));
-  --color-input:             hsl(var(--input));
-  --color-ring:              hsl(var(--ring));
+  --color-border:              hsl(var(--border));
+  --color-input:               hsl(var(--input));
+  --color-ring:                hsl(var(--ring));
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
 }
 
 @layer base {
+  /* ─── Back Alley Fly — Deep River Dark Theme (default) ─── */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 210 40% 15%;
+    --background:   222 47% 7%;      /* #08101C deep navy */
+    --foreground:   210 20% 96%;     /* #EEF2F5 off-white */
 
-    --card: 0 0% 100%;
-    --card-foreground: 210 40% 15%;
+    --card:         220 38% 11%;     /* #101828 BAF dark navy */
+    --card-foreground: 210 20% 96%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 15%;
+    --popover:      220 38% 11%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 5 78% 70%;
+    --primary:      0 55% 52%;       /* #c94344 BAF red */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 24%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary:    216 37% 17%;     /* #1D2939 */
+    --secondary-foreground: 210 20% 96%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 210 15% 45%;
+    --muted:        216 30% 15%;
+    --muted-foreground: 215 16% 55%; /* #8090A0 */
 
-    --accent: 5 78% 70%;
+    --accent:       0 55% 52%;       /* BAF red accent */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive:  0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 40% 85%;
-    --input: 210 40% 85%;
-    --ring: 5 78% 70%;
+    --border:       215 23% 18%;     /* subtle dark border */
+    --input:        215 23% 18%;
+    --ring:         0 55% 52%;       /* red focus ring */
 
     --radius: 0.5rem;
 
-    /* Status colors */
-    --optimal: 142 76% 36%;
-    --elevated: 38 92% 50%;
-    --high: 0 84% 60%;
-    --low: 201 96% 32%;
-    --ice-affected: 201 79% 46%;
+    /* Status semantic tokens */
+    --status-optimal:      142 71% 45%;
+    --status-elevated:     38 92% 50%;
+    --status-high:         0 84% 60%;
+    --status-low:          213 93% 55%;
+    --status-ice:          199 89% 48%;
   }
 
-  .dark {
-    --background: 210 40% 8%;
-    --foreground: 0 0% 95%;
-
-    --card: 210 40% 10%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 210 40% 10%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 5 78% 70%;
+  /* Light mode override (available if needed via class) */
+  .light {
+    --background:   0 0% 100%;
+    --foreground:   222 47% 11%;
+    --card:         0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover:      0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary:      0 55% 52%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 24%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 210 40% 15%;
-    --muted-foreground: 210 15% 60%;
-
-    --accent: 5 78% 70%;
+    --secondary:    215 20% 92%;
+    --secondary-foreground: 222 47% 11%;
+    --muted:        215 20% 95%;
+    --muted-foreground: 215 16% 45%;
+    --accent:       0 55% 52%;
     --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
+    --destructive:  0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 210 40% 20%;
-    --input: 210 40% 20%;
-    --ring: 5 78% 70%;
+    --border:       215 20% 88%;
+    --input:        215 20% 88%;
+    --ring:         0 55% 52%;
   }
 }
 
@@ -104,5 +97,11 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Native select — inherits dark bg in dark theme */
+  select option {
+    background-color: hsl(220, 38%, 11%);
+    color: hsl(210, 20%, 96%);
   }
 }

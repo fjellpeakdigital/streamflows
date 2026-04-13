@@ -6,107 +6,90 @@ import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 
 interface RiversListProps {
   rivers: RiverWithCondition[];
 }
 
 export function RiversList({ rivers }: RiversListProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [speciesFilter, setSpeciesFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery]   = useState('');
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [speciesFilter, setSpeciesFilter] = useState('all');
 
-  // Get unique regions and species
   const regions = useMemo(() => {
-    const uniqueRegions = new Set(rivers.map((r) => r.region));
-    return Array.from(uniqueRegions).sort();
+    return Array.from(new Set(rivers.map((r) => r.region))).sort();
   }, [rivers]);
 
   const species = useMemo(() => {
-    const uniqueSpecies = new Set<string>();
-    rivers.forEach((r) => {
-      r.species?.forEach((s) => uniqueSpecies.add(s.species));
-    });
-    return Array.from(uniqueSpecies).sort();
+    const s = new Set<string>();
+    rivers.forEach((r) => r.species?.forEach((sp) => s.add(sp.species)));
+    return Array.from(s).sort();
   }, [rivers]);
 
-  // Filter rivers
   const filteredRivers = useMemo(() => {
     return rivers.filter((river) => {
-      // Search filter
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          river.name.toLowerCase().includes(query) ||
-          river.region.toLowerCase().includes(query) ||
-          river.description?.toLowerCase().includes(query);
-        if (!matchesSearch) return false;
+        const q = searchQuery.toLowerCase();
+        if (
+          !river.name.toLowerCase().includes(q) &&
+          !river.region.toLowerCase().includes(q) &&
+          !river.description?.toLowerCase().includes(q)
+        ) return false;
       }
-
-      // Region filter
-      if (regionFilter !== 'all' && river.region !== regionFilter) {
-        return false;
-      }
-
-      // Status filter
+      if (regionFilter !== 'all' && river.region !== regionFilter) return false;
       if (statusFilter !== 'all') {
-        const status = river.current_condition?.status || 'low';
-        if (status !== statusFilter) return false;
+        const s = river.current_condition?.status ?? 'unknown';
+        if (s !== statusFilter) return false;
       }
-
-      // Species filter
       if (speciesFilter !== 'all') {
-        const hasSpecies = river.species?.some((s) => s.species === speciesFilter);
-        if (!hasSpecies) return false;
+        if (!river.species?.some((s) => s.species === speciesFilter)) return false;
       }
-
       return true;
     });
   }, [rivers, searchQuery, regionFilter, statusFilter, speciesFilter]);
 
-  const handleClearFilters = () => {
+  const hasFilters = searchQuery || regionFilter !== 'all' || statusFilter !== 'all' || speciesFilter !== 'all';
+
+  const clearFilters = () => {
     setSearchQuery('');
     setRegionFilter('all');
     setStatusFilter('all');
     setSpeciesFilter('all');
   };
 
-  const hasActiveFilters =
-    searchQuery || regionFilter !== 'all' || statusFilter !== 'all' || speciesFilter !== 'all';
-
   return (
-    <div>
-      {/* Filters */}
-      <div className="bg-card border rounded-lg p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search rivers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+    <div className="space-y-6">
 
-          <Select
-            value={regionFilter}
-            onChange={(e) => setRegionFilter(e.target.value)}
-          >
+      {/* Filter bar */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <SlidersHorizontal className="h-4 w-4" />
+          <span className="font-medium">Filter rivers</span>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search by name or region…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-background"
+          />
+        </div>
+
+        {/* Dropdowns */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="bg-background">
             <option value="all">All Regions</option>
-            {regions.map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
+            {regions.map((r) => (
+              <option key={r} value={r}>{r}</option>
             ))}
           </Select>
 
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-background">
             <option value="all">All Status</option>
             <option value="optimal">Optimal</option>
             <option value="elevated">Elevated</option>
@@ -115,10 +98,7 @@ export function RiversList({ rivers }: RiversListProps) {
             <option value="ice_affected">Ice Affected</option>
           </Select>
 
-          <Select
-            value={speciesFilter}
-            onChange={(e) => setSpeciesFilter(e.target.value)}
-          >
+          <Select value={speciesFilter} onChange={(e) => setSpeciesFilter(e.target.value)} className="bg-background">
             <option value="all">All Species</option>
             {species.map((s) => (
               <option key={s} value={s}>
@@ -128,41 +108,35 @@ export function RiversList({ rivers }: RiversListProps) {
           </Select>
         </div>
 
-        {hasActiveFilters && (
-          <div className="flex items-center justify-between">
+        {/* Result count + clear */}
+        {hasFilters && (
+          <div className="flex items-center justify-between pt-1">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredRivers.length} of {rivers.length} rivers
+              Showing <span className="font-semibold text-foreground">{filteredRivers.length}</span> of {rivers.length} rivers
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearFilters}
-              className="gap-1"
-            >
-              <X className="h-4 w-4" />
-              Clear Filters
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+              Clear
             </Button>
           </div>
         )}
       </div>
 
-      {/* Rivers Grid */}
+      {/* Grid */}
       {filteredRivers.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground text-lg">
-            No rivers found matching your filters.
-          </p>
-          <Button onClick={handleClearFilters} className="mt-4">
-            Clear Filters
-          </Button>
+        <div className="text-center py-16 bg-card border border-border rounded-xl">
+          <p className="text-muted-foreground text-lg mb-1">No rivers match your filters.</p>
+          <p className="text-muted-foreground text-sm mb-4">Try broadening your search.</p>
+          <Button variant="outline" onClick={clearFilters}>Clear Filters</Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredRivers.map((river) => (
             <RiverCard key={river.id} river={river} showFavorite={false} />
           ))}
         </div>
       )}
+
     </div>
   );
 }
