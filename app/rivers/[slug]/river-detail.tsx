@@ -65,7 +65,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [toast, setToast]             = useState<Toast | null>(null);
 
-  const status = current_condition?.status || 'unknown';
+  const status = current_condition?.status || 'low';
 
   const chartData = conditions.map((c: any) => ({
     time: format(new Date(c.timestamp), 'HH:mm'),

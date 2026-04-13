@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
 import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
-import { getStatusDotColor, getStatusLabel } from '@/lib/river-utils';
+import { getStatusDotColor, getStatusLabel, calculateStatus } from '@/lib/river-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +44,16 @@ async function getRivers() {
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
     const trend = currentCondition?.trend ?? 'unknown';
     const is_favorite = favorites.some((f) => f.river_id === river.id);
+
+    // If status wasn't stored by the Edge Function, calculate it from raw flow data
+    if (currentCondition && !currentCondition.status) {
+      currentCondition.status = calculateStatus(
+        currentCondition.flow,
+        river.optimal_flow_min,
+        river.optimal_flow_max
+      );
+    }
+
     return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite };
   });
 

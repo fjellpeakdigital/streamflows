@@ -32,7 +32,7 @@ export function RiverCard({
   showFavorite = false,
 }: RiverCardProps) {
   const condition = river.current_condition;
-  const status = condition?.status || 'unknown';
+  const status = condition?.status || 'low';
   const trend = river.trend || 'stable';
 
   return (
