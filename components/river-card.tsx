@@ -12,7 +12,7 @@ import {
   formatFlow,
   formatTemperature,
 } from '@/lib/river-utils';
-import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves } from 'lucide-react';
+import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves, Clock } from 'lucide-react';
 
 interface RiverCardProps {
   river: RiverWithCondition;
@@ -129,6 +129,24 @@ export function RiverCard({
                   +{river.species.length - 3}
                 </Badge>
               )}
+            </div>
+          )}
+
+          {/* Last updated timestamp */}
+          {condition?.timestamp && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 pt-1 border-t border-border/50">
+              <Clock className="h-2.5 w-2.5" />
+              <span>
+                {(() => {
+                  const age = Date.now() - new Date(condition.timestamp).getTime();
+                  const mins = Math.floor(age / 60000);
+                  if (mins < 60) return `${mins}m ago`;
+                  const hours = Math.floor(mins / 60);
+                  if (hours < 24) return `${hours}h ago`;
+                  const days = Math.floor(hours / 24);
+                  return `${days}d ago`;
+                })()}
+              </span>
             </div>
           )}
 

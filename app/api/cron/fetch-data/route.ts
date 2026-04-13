@@ -33,12 +33,12 @@ interface SiteData {
   temperature: number | null;
   gageHeight: number | null;
   timestamp: string;
+  source: 'iv' | 'dv';
 }
 
 const BATCH_SIZE = 50;
 const MAX_CONCURRENT = 3;
 
-/** Split an array into chunks of a given size */
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < arr.length; i += size) {
@@ -47,7 +47,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-/** Run async functions with limited concurrency */
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   limit: number
@@ -74,81 +73,89 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-/** Fetch a batch of sites from USGS and return parsed data keyed by site ID */
-async function fetchUSGSBatch(
-  siteIds: string[],
-  errors: string[]
-): Promise<Map<string, SiteData>> {
+/** Parse USGS timeSeries response into a map of site ID -> SiteData */
+function parseUSGSResponse(
+  data: USGSResponse,
+  source: 'iv' | 'dv'
+): Map<string, SiteData> {
   const siteDataMap = new Map<string, SiteData>();
-  const sitesParam = siteIds.join(',');
-  const usgsUrl = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all`;
 
-  try {
-    console.log(`[cron] Fetching USGS batch: ${siteIds.length} sites, URL length: ${usgsUrl.length}`);
-    const response = await fetch(usgsUrl);
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      errors.push(`USGS batch fetch failed (HTTP ${response.status}) for ${siteIds.length} sites: ${body.slice(0, 200)}`);
-      return siteDataMap;
+  if (!data.value?.timeSeries) return siteDataMap;
+
+  const siteSeriesMap = new Map<string, typeof data.value.timeSeries>();
+  for (const series of data.value.timeSeries) {
+    const siteId = series.sourceInfo.siteCode[0].value;
+    if (!siteSeriesMap.has(siteId)) {
+      siteSeriesMap.set(siteId, []);
     }
+    siteSeriesMap.get(siteId)!.push(series);
+  }
 
-    const data: USGSResponse = await response.json();
+  for (const [siteId, seriesList] of siteSeriesMap) {
+    let flow: number | null = null;
+    let temperature: number | null = null;
+    let gageHeight: number | null = null;
+    let timestamp = new Date().toISOString();
 
-    if (!data.value?.timeSeries) {
-      errors.push(`USGS batch: no timeSeries in response for ${siteIds.length} sites`);
-      return siteDataMap;
-    }
+    for (const series of seriesList) {
+      const paramCode = series.variable.variableCode[0].value;
+      const values = series.values[0]?.value;
+      if (!values || values.length === 0) continue;
 
-    console.log(`[cron] USGS batch returned ${data.value.timeSeries.length} time series for ${siteIds.length} requested sites`);
+      const latestValue = values[values.length - 1];
+      timestamp = latestValue.dateTime;
 
-    // Group time series by site ID
-    const siteSeriesMap = new Map<string, typeof data.value.timeSeries>();
-    for (const series of data.value.timeSeries) {
-      const siteId = series.sourceInfo.siteCode[0].value;
-      if (!siteSeriesMap.has(siteId)) {
-        siteSeriesMap.set(siteId, []);
+      if (paramCode === '00060') {
+        flow = parseFloat(latestValue.value);
+      } else if (paramCode === '00010') {
+        const celsius = parseFloat(latestValue.value);
+        temperature = (celsius * 9) / 5 + 32;
+      } else if (paramCode === '00065') {
+        gageHeight = parseFloat(latestValue.value);
       }
-      siteSeriesMap.get(siteId)!.push(series);
     }
 
-    // Parse each site's data
-    for (const [siteId, seriesList] of siteSeriesMap) {
-      let flow: number | null = null;
-      let temperature: number | null = null;
-      let gageHeight: number | null = null;
-      let timestamp = new Date().toISOString();
-
-      for (const series of seriesList) {
-        const paramCode = series.variable.variableCode[0].value;
-        const values = series.values[0]?.value;
-        if (!values || values.length === 0) continue;
-
-        const latestValue = values[values.length - 1];
-        timestamp = latestValue.dateTime;
-
-        if (paramCode === '00060') {
-          flow = parseFloat(latestValue.value);
-        } else if (paramCode === '00010') {
-          const celsius = parseFloat(latestValue.value);
-          temperature = (celsius * 9) / 5 + 32;
-        } else if (paramCode === '00065') {
-          gageHeight = parseFloat(latestValue.value);
-        }
-      }
-
-      siteDataMap.set(siteId, { flow, temperature, gageHeight, timestamp });
-    }
-  } catch (error: any) {
-    errors.push(`USGS batch error: ${error?.message ?? String(error)}`);
+    siteDataMap.set(siteId, { flow, temperature, gageHeight, timestamp, source });
   }
 
   return siteDataMap;
 }
 
+/** Fetch a batch of sites from a USGS endpoint */
+async function fetchUSGSBatch(
+  siteIds: string[],
+  endpoint: 'iv' | 'dv',
+  errors: string[]
+): Promise<Map<string, SiteData>> {
+  const sitesParam = siteIds.join(',');
+  const baseUrl = `https://waterservices.usgs.gov/nwis/${endpoint}/`;
+  const params = endpoint === 'iv'
+    ? `format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all`
+    : `format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all&period=P1D`;
+  const usgsUrl = `${baseUrl}?${params}`;
+
+  try {
+    console.log(`[cron] Fetching USGS ${endpoint.toUpperCase()} batch: ${siteIds.length} sites`);
+    const response = await fetch(usgsUrl);
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      errors.push(`USGS ${endpoint} batch failed (HTTP ${response.status}): ${body.slice(0, 200)}`);
+      return new Map();
+    }
+
+    const data: USGSResponse = await response.json();
+    const result = parseUSGSResponse(data, endpoint);
+    console.log(`[cron] USGS ${endpoint.toUpperCase()} batch: ${result.size}/${siteIds.length} sites returned data`);
+    return result;
+  } catch (error: any) {
+    errors.push(`USGS ${endpoint} batch error: ${error?.message ?? String(error)}`);
+    return new Map();
+  }
+}
+
 export async function GET(request: Request) {
   const startTime = Date.now();
 
-  // Verify cron secret via header or query param
   const authHeader = request.headers.get('authorization');
   const { searchParams } = new URL(request.url);
   const querySecret = searchParams.get('secret');
@@ -165,7 +172,6 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Get all rivers
     const { data: rivers, error: riversError } = await supabase
       .from('rivers')
       .select('*');
@@ -175,10 +181,10 @@ export async function GET(request: Request) {
     }
 
     console.log(`[cron] Fetching data for ${rivers.length} rivers`);
-    const results: Array<{ river: string; flow: number | null; temperature: number | null; status: string }> = [];
+    const results: Array<{ river: string; flow: number | null; temperature: number | null; status: string; source: string }> = [];
     const errors: string[] = [];
 
-    // Build a map of station ID → river(s) for quick lookup
+    // Build station -> rivers lookup
     const stationToRivers = new Map<string, typeof rivers>();
     for (const river of rivers) {
       const sid = river.usgs_station_id;
@@ -188,30 +194,50 @@ export async function GET(request: Request) {
       stationToRivers.get(sid)!.push(river);
     }
 
-    // Batch USGS API calls
     const allStationIds = Array.from(stationToRivers.keys());
-    const batches = chunk(allStationIds, BATCH_SIZE);
 
-    console.log(`[cron] ${allStationIds.length} stations in ${batches.length} batch(es)`);
-    const fetchStart = Date.now();
+    // -- Phase 1: Fetch Instantaneous Values (real-time) --
+    const ivBatches = chunk(allStationIds, BATCH_SIZE);
+    console.log(`[cron] Phase 1 (IV): ${allStationIds.length} stations in ${ivBatches.length} batch(es)`);
+    const ivStart = Date.now();
 
-    // Fetch all batches with limited concurrency
-    const batchResults = await runWithConcurrency(
-      batches.map((batch) => () => fetchUSGSBatch(batch, errors)),
+    const ivResults = await runWithConcurrency(
+      ivBatches.map((batch) => () => fetchUSGSBatch(batch, 'iv', errors)),
       MAX_CONCURRENT
     );
 
-    // Merge all batch results into one map
     const allSiteData = new Map<string, SiteData>();
-    for (const batchMap of batchResults) {
+    for (const batchMap of ivResults) {
       for (const [siteId, data] of batchMap) {
         allSiteData.set(siteId, data);
       }
     }
 
-    console.log(`[cron] USGS fetch complete in ${Date.now() - fetchStart}ms — got data for ${allSiteData.size} sites`);
+    console.log(`[cron] Phase 1 (IV) complete in ${Date.now() - ivStart}ms — ${allSiteData.size}/${allStationIds.length} sites`);
 
-    // Fetch old flows for trend calculation (one query for all rivers)
+    // -- Phase 2: Fetch Daily Values for stations missing from IV --
+    const missingSiteIds = allStationIds.filter((id) => !allSiteData.has(id));
+
+    if (missingSiteIds.length > 0) {
+      const dvBatches = chunk(missingSiteIds, BATCH_SIZE);
+      console.log(`[cron] Phase 2 (DV): ${missingSiteIds.length} stations in ${dvBatches.length} batch(es)`);
+      const dvStart = Date.now();
+
+      const dvResults = await runWithConcurrency(
+        dvBatches.map((batch) => () => fetchUSGSBatch(batch, 'dv', errors)),
+        MAX_CONCURRENT
+      );
+
+      for (const batchMap of dvResults) {
+        for (const [siteId, data] of batchMap) {
+          allSiteData.set(siteId, data);
+        }
+      }
+
+      console.log(`[cron] Phase 2 (DV) complete in ${Date.now() - dvStart}ms — now ${allSiteData.size}/${allStationIds.length} sites total`);
+    }
+
+    // -- Fetch old flows for trend calculation --
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
     const { data: oldConditions } = await supabase
       .from('conditions')
@@ -219,18 +245,17 @@ export async function GET(request: Request) {
       .lte('timestamp', threeHoursAgo)
       .order('timestamp', { ascending: false });
 
-    // Build a map of river_id → most recent old flow (for trend calc)
     const oldFlowMap = new Map<string, number>();
     if (oldConditions) {
       for (const cond of oldConditions) {
-        // Only keep the first (most recent) one per river
         if (!oldFlowMap.has(cond.river_id) && cond.flow !== null && cond.flow > -999000) {
           oldFlowMap.set(cond.river_id, cond.flow);
         }
       }
     }
 
-    // Process each river and prepare inserts
+    // -- Process rivers and prepare inserts --
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
     const twentyFourHours = 24 * 60 * 60 * 1000;
     const inserts: Array<{
       river_id: string;
@@ -243,6 +268,9 @@ export async function GET(request: Request) {
     }> = [];
 
     const noDataRivers: string[] = [];
+    let ivCount = 0;
+    let dvCount = 0;
+
     for (const river of rivers) {
       const siteData = allSiteData.get(river.usgs_station_id);
       if (!siteData) {
@@ -250,10 +278,11 @@ export async function GET(request: Request) {
         continue;
       }
 
-      // Skip stale data
+      // Skip very stale data (7 days for DV, 24h for IV)
       const dataAge = Date.now() - new Date(siteData.timestamp).getTime();
-      if (dataAge > twentyFourHours) {
-        errors.push(`${river.name}: stale data (timestamp: ${siteData.timestamp}), skipping`);
+      const maxAge = siteData.source === 'dv' ? sevenDays : twentyFourHours;
+      if (dataAge > maxAge) {
+        errors.push(`${river.name}: stale ${siteData.source} data (${siteData.timestamp}), skipping`);
         continue;
       }
 
@@ -263,7 +292,6 @@ export async function GET(request: Request) {
         river.optimal_flow_max
       );
 
-      // Calculate trend
       let trend: string = 'unknown';
       if (siteData.flow !== null && siteData.flow > -999000) {
         const oldFlow = oldFlowMap.get(river.id);
@@ -287,10 +315,14 @@ export async function GET(request: Request) {
         flow: siteData.flow,
         temperature: siteData.temperature,
         status,
+        source: siteData.source,
       });
+
+      if (siteData.source === 'iv') ivCount++;
+      else dvCount++;
     }
 
-    // Batch insert all conditions at once
+    // -- Batch insert --
     if (inserts.length > 0) {
       const insertStart = Date.now();
       const { error: insertError } = await supabase
@@ -298,39 +330,33 @@ export async function GET(request: Request) {
         .insert(inserts);
 
       if (insertError) {
-        // If batch insert fails (e.g. some duplicates), fall back to individual inserts
         console.log(`[cron] Batch insert failed, falling back to individual inserts: ${insertError.message}`);
         let inserted = 0;
         for (const row of inserts) {
           const { error: rowError } = await supabase.from('conditions').insert(row);
           if (rowError) {
-            // Find river name for error message
-            const riverName = rivers.find((r) => r.id === row.river_id)?.name ?? row.river_id;
-            if (rowError.code === '23505') {
-              // Duplicate — silently skip
-            } else {
+            if (rowError.code !== '23505') {
+              const riverName = rivers.find((r) => r.id === row.river_id)?.name ?? row.river_id;
               errors.push(`INSERT ${riverName}: ${JSON.stringify(rowError)}`);
             }
           } else {
             inserted++;
           }
         }
-        console.log(`[cron] Individual inserts: ${inserted}/${inserts.length} succeeded in ${Date.now() - insertStart}ms`);
+        console.log(`[cron] Individual inserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
       } else {
         console.log(`[cron] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
       }
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`[cron] Complete: ${results.length}/${rivers.length} rivers in ${totalTime}ms`);
-    if (noDataRivers.length > 0) {
-      console.log(`[cron] ${noDataRivers.length} rivers had no USGS IV data (may be seasonal, daily-only, or inactive)`);
-    }
+    console.log(`[cron] Complete: ${results.length}/${rivers.length} rivers (${ivCount} IV, ${dvCount} DV) in ${totalTime}ms`);
 
     return NextResponse.json({
       success: true,
       total_rivers: rivers.length,
       processed: results.length,
+      sources: { iv: ivCount, dv: dvCount },
       no_data_count: noDataRivers.length,
       no_data_rivers: noDataRivers,
       duration_ms: totalTime,
