@@ -1,38 +1,125 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Activity, Bell, Heart, TrendingUp, ChevronRight, Droplets } from 'lucide-react';
+import {
+  Activity,
+  Bell,
+  Heart,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ChevronRight,
+  Droplets,
+  Waves,
+  Thermometer,
+  Clock,
+  Target,
+  BarChart3,
+  BookOpen,
+  Shield,
+  Users,
+  Map,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  Radio,
+  SlidersHorizontal,
+  Gauge,
+  Star,
+} from 'lucide-react';
 
-export default function Home() {
+/* ────────────────────────────────────────────
+   Section 1 — Hero
+   ──────────────────────────────────────────── */
+
+function HeroMockupCard({
+  name,
+  region,
+  flow,
+  status,
+  statusColor,
+  trend,
+  trendIcon,
+  temp,
+}: {
+  name: string;
+  region: string;
+  flow: string;
+  status: string;
+  statusColor: string;
+  trend: string;
+  trendIcon: React.ReactNode;
+  temp: string;
+}) {
   return (
-    <div className="flex flex-col">
+    <div className="bg-white rounded-xl border border-border shadow-sm p-4 space-y-3">
+      <div>
+        <div className="font-semibold text-sm text-foreground leading-tight">{name}</div>
+        <div className="text-xs text-muted-foreground">{region}</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${statusColor}`}>
+          {status}
+        </span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {trendIcon}
+          {trend}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-secondary rounded-md px-2.5 py-1.5">
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Waves className="h-2.5 w-2.5" />Flow</div>
+          <div className="text-xs font-semibold text-foreground">{flow}</div>
+        </div>
+        <div className="bg-secondary rounded-md px-2.5 py-1.5">
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Thermometer className="h-2.5 w-2.5" />Temp</div>
+          <div className="text-xs font-semibold text-foreground">{temp}</div>
+        </div>
+      </div>
+      {/* Mini sparkline mockup */}
+      <div className="h-8 w-full rounded bg-secondary flex items-end px-1 gap-px">
+        {[40, 45, 42, 50, 55, 52, 48, 53, 58, 55, 60, 57].map((v, i) => (
+          <div
+            key={i}
+            className="flex-1 bg-primary/40 rounded-t-sm"
+            style={{ height: `${v}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        {/* Background layers */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-card to-secondary/30 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(0,55%,52%,0.12),transparent_60%)] pointer-events-none" />
+function HeroSection() {
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-b from-white via-background to-background">
+      {/* Subtle decorative gradient */}
+      <div className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_top_right,hsl(200,65%,38%,0.06),transparent_60%)] pointer-events-none" />
 
-        <div className="relative container mx-auto px-4 py-16 md:py-24 lg:py-32">
-          <div className="max-w-3xl">
+      <div className="relative container mx-auto px-4 pt-12 pb-16 md:pt-20 md:pb-24 lg:pt-24 lg:pb-32">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+          {/* Left — Copy */}
+          <div className="max-w-xl">
             {/* Eyebrow */}
-            <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3 py-1 mb-6">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs font-semibold text-primary tracking-wider uppercase">
-                Live Data · Updated Every 15 Min
+            <div className="inline-flex items-center gap-2 bg-primary/8 border border-primary/15 rounded-full px-3.5 py-1 mb-6">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-xs font-semibold text-primary tracking-wide uppercase">
+                Live Data &middot; Updated Every 15 Min
               </span>
             </div>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight mb-6">
-              Know Your
-              <span className="block text-primary">River.</span>
-              <span className="block text-foreground/70 text-4xl sm:text-5xl lg:text-6xl font-semibold mt-1">
-                Fish Smarter.
-              </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight text-foreground mb-5">
+              Real-Time River Intelligence for{' '}
+              <span className="text-primary">New England</span>
             </h1>
 
-            <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
-              Real-time flow data for 50+ New England rivers — built for fly fishing guides who
-              can't afford to show up to blown-out conditions.
+            <p className="text-lg text-muted-foreground max-w-lg mb-8 leading-relaxed">
+              Stop guessing. StreamFlows translates raw USGS gauge data into clear,
+              fishable-or-not conditions for 50+ rivers across 6 states — so you know
+              exactly where to go before you load the truck.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -44,98 +131,92 @@ export default function Home() {
               </Link>
               <Link href="/signup">
                 <Button size="lg" variant="outline" className="gap-2 text-base h-12 px-6">
-                  Get Flow Alerts
+                  Get Started Free
                 </Button>
               </Link>
             </div>
+          </div>
 
-            {/* Inline social proof */}
-            <div className="flex items-center gap-6 mt-10 pt-8 border-t border-border">
-              <div>
-                <div className="text-2xl font-bold text-foreground">50+</div>
-                <div className="text-xs text-muted-foreground">NE Rivers</div>
+          {/* Right — Product Mockup */}
+          <div className="relative">
+            {/* Glow behind mockup */}
+            <div className="absolute -inset-4 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 rounded-3xl blur-2xl pointer-events-none" />
+
+            <div className="relative bg-secondary/50 border border-border rounded-2xl p-4 sm:p-5 shadow-lg">
+              {/* Mockup header bar */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Droplets className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">River Conditions</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>Just now</span>
+                </div>
               </div>
-              <div className="w-px h-8 bg-border" />
-              <div>
-                <div className="text-2xl font-bold text-foreground">6</div>
-                <div className="text-xs text-muted-foreground">States</div>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div>
-                <div className="text-2xl font-bold text-foreground">15 min</div>
-                <div className="text-xs text-muted-foreground">Updates</div>
+
+              {/* Mocked river cards */}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <HeroMockupCard
+                  name="Deerfield River"
+                  region="Western MA"
+                  flow="342 CFS"
+                  status="Optimal"
+                  statusColor="bg-emerald-100 text-emerald-800 border-emerald-200"
+                  trend="Stable"
+                  trendIcon={<Minus className="h-3 w-3 text-muted-foreground" />}
+                  temp="54.2°F"
+                />
+                <HeroMockupCard
+                  name="Farmington River"
+                  region="Northern CT"
+                  flow="485 CFS"
+                  status="Elevated"
+                  statusColor="bg-amber-100 text-amber-800 border-amber-200"
+                  trend="Rising"
+                  trendIcon={<TrendingUp className="h-3 w-3 text-amber-500" />}
+                  temp="52.8°F"
+                />
+                <HeroMockupCard
+                  name="Swift River"
+                  region="Central MA"
+                  flow="128 CFS"
+                  status="Optimal"
+                  statusColor="bg-emerald-100 text-emerald-800 border-emerald-200"
+                  trend="Falling"
+                  trendIcon={<TrendingDown className="h-3 w-3 text-blue-500" />}
+                  temp="48.6°F"
+                />
+                <HeroMockupCard
+                  name="White River"
+                  region="Central VT"
+                  flow="1,240 CFS"
+                  status="High"
+                  statusColor="bg-red-100 text-red-800 border-red-200"
+                  trend="Rising"
+                  trendIcon={<TrendingUp className="h-3 w-3 text-amber-500" />}
+                  temp="46.1°F"
+                />
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── Feature Cards ── */}
-      <section className="container mx-auto px-4 py-16">
-        <h2 className="text-2xl font-bold mb-8 text-center">
-          Everything a guide needs
-        </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              icon: Activity,
-              title: 'Real-time Data',
-              desc: 'Live USGS flow and temperature data refreshed every 15 minutes.',
-            },
-            {
-              icon: Heart,
-              title: 'Favorite Rivers',
-              desc: 'Pin your go-to spots and check conditions at a glance.',
-            },
-            {
-              icon: Bell,
-              title: 'Smart Alerts',
-              desc: 'Get notified the moment your river hits optimal fishing conditions.',
-            },
-            {
-              icon: TrendingUp,
-              title: 'Flow Trends',
-              desc: 'See whether conditions are rising, falling, or holding steady.',
-            },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div
-              key={title}
-              className="group bg-card border border-border rounded-xl p-6 hover:border-primary/40 transition-colors"
-            >
-              <div className="flex items-center justify-center h-11 w-11 rounded-lg bg-primary/10 mb-4 group-hover:bg-primary/20 transition-colors">
-                <Icon className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="font-semibold text-base mb-2">{title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-            </div>
-          ))}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* ── CTA Strip ── */}
-      <section className="container mx-auto px-4 pb-20">
-        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-8 md:p-12 text-center">
-          <Droplets className="h-10 w-10 text-primary mx-auto mb-4" />
-          <h2 className="text-3xl font-bold mb-3">Ready to fish smarter?</h2>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Join guides across New England who rely on StreamFlows before every trip.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/rivers">
-              <Button size="lg" className="gap-2">
-                Browse All Rivers
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="lg" variant="outline">
-                Create Free Account
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+/* ────────────────────────────────────────────
+   Sections 2-8 — Placeholders (to be built)
+   ──────────────────────────────────────────── */
 
+export default function Home() {
+  return (
+    <div className="flex flex-col">
+      <HeroSection />
     </div>
   );
 }
