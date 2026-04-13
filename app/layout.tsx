@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
+import { Footer } from "@/components/footer";
 import { createClient } from "@/lib/supabase/server";
 
 const openSans = Open_Sans({
@@ -12,9 +13,9 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "StreamFlows — Real-time River Conditions for Fly Fishing",
+  title: "StreamFlows — Real-Time River Intelligence for Fly Fishing",
   description:
-    "Track real-time river conditions, flows, and temperatures for New England fly fishing. Get alerts when conditions are optimal.",
+    "Real-time river conditions for 50+ New England rivers. StreamFlows translates live USGS gauge data into actionable fishing intelligence — optimal flows, trends, alerts, and more.",
 };
 
 export default async function RootLayout({
@@ -38,6 +39,7 @@ export default async function RootLayout({
         <main className="min-h-screen bg-background">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );

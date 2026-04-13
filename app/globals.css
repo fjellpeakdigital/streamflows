@@ -24,70 +24,59 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+
+  /* Extended palette for marketing site */
+  --color-river-blue:          hsl(var(--river-blue));
+  --color-sage:                hsl(var(--sage));
+  --color-stone-warm:          hsl(var(--stone-warm));
+  --color-slate-navy:          hsl(var(--slate-navy));
 }
 
 @layer base {
-  /* ─── Back Alley Fly — Deep River Dark Theme (default) ─── */
+  /* ─── StreamFlows — Premium Light Theme (default) ─── */
   :root {
-    --background:   222 47% 7%;      /* #08101C deep navy */
-    --foreground:   210 20% 96%;     /* #EEF2F5 off-white */
+    --background:   40 20% 97%;        /* warm off-white */
+    --foreground:   220 30% 18%;       /* dark slate */
 
-    --card:         220 38% 11%;     /* #101828 BAF dark navy */
-    --card-foreground: 210 20% 96%;
+    --card:         0 0% 100%;         /* pure white cards */
+    --card-foreground: 220 30% 18%;
 
-    --popover:      220 38% 11%;
-    --popover-foreground: 210 20% 96%;
+    --popover:      0 0% 100%;
+    --popover-foreground: 220 30% 18%;
 
-    --primary:      0 55% 52%;       /* #c94344 BAF red */
+    --primary:      200 65% 38%;       /* river blue - deep teal-blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary:    216 37% 17%;     /* #1D2939 */
-    --secondary-foreground: 210 20% 96%;
+    --secondary:    40 15% 93%;        /* warm stone */
+    --secondary-foreground: 220 30% 18%;
 
-    --muted:        216 30% 15%;
-    --muted-foreground: 215 16% 55%; /* #8090A0 */
+    --muted:        40 12% 94%;        /* subtle warm gray */
+    --muted-foreground: 220 12% 50%;   /* readable mid-gray */
 
-    --accent:       0 55% 52%;       /* BAF red accent */
+    --accent:       155 30% 42%;       /* sage/olive green */
     --accent-foreground: 0 0% 100%;
 
     --destructive:  0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border:       215 23% 18%;     /* subtle dark border */
-    --input:        215 23% 18%;
-    --ring:         0 55% 52%;       /* red focus ring */
+    --border:       220 15% 88%;       /* subtle cool border */
+    --input:        220 15% 88%;
+    --ring:         200 65% 38%;       /* matches primary */
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
     /* Status semantic tokens */
-    --status-optimal:      142 71% 45%;
-    --status-elevated:     38 92% 50%;
-    --status-high:         0 84% 60%;
-    --status-low:          213 93% 55%;
-    --status-ice:          199 89% 48%;
-  }
+    --status-optimal:      152 60% 40%;
+    --status-elevated:     38 85% 48%;
+    --status-high:         0 75% 55%;
+    --status-low:          213 80% 52%;
+    --status-ice:          199 80% 48%;
 
-  /* Light mode override (available if needed via class) */
-  .light {
-    --background:   0 0% 100%;
-    --foreground:   222 47% 11%;
-    --card:         0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover:      0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary:      0 55% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary:    215 20% 92%;
-    --secondary-foreground: 222 47% 11%;
-    --muted:        215 20% 95%;
-    --muted-foreground: 215 16% 45%;
-    --accent:       0 55% 52%;
-    --accent-foreground: 0 0% 100%;
-    --destructive:  0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border:       215 20% 88%;
-    --input:        215 20% 88%;
-    --ring:         0 55% 52%;
+    /* Extended brand palette */
+    --river-blue:   200 65% 38%;
+    --sage:         155 30% 42%;
+    --stone-warm:   35 25% 90%;
+    --slate-navy:   220 30% 18%;
   }
 }
 
@@ -99,9 +88,9 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Native select — inherits dark bg in dark theme */
+  /* Native select styling for light theme */
   select option {
-    background-color: hsl(220, 38%, 11%);
-    color: hsl(210, 20%, 96%);
+    background-color: white;
+    color: hsl(220, 30%, 18%);
   }
 }

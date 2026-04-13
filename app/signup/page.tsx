@@ -54,10 +54,10 @@ export default function SignupPage() {
 
         {/* Logo mark */}
         <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
             <Droplets className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
+          <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Track rivers and get flow alerts for free
           </p>
@@ -65,20 +65,20 @@ export default function SignupPage() {
 
         {/* Success state */}
         {success ? (
-          <div className="bg-card border border-emerald-500/30 rounded-2xl p-8 text-center shadow-xl shadow-black/20">
+          <div className="bg-white border border-emerald-200 rounded-2xl p-8 text-center shadow-sm">
             <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
-            <h2 className="text-lg font-bold mb-2">Account created!</h2>
+            <h2 className="text-lg font-bold text-foreground mb-2">Account created!</h2>
             <p className="text-sm text-muted-foreground">
               Redirecting you to the rivers dashboard…
             </p>
           </div>
         ) : (
           /* Form card */
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-xl shadow-black/20">
+          <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
             <form onSubmit={handleSignup} className="space-y-4">
 
               {error && (
-                <div className="flex items-start gap-2.5 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-sm text-destructive">
+                <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-700">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   {error}
                 </div>
@@ -96,7 +96,7 @@ export default function SignupPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="bg-background h-11"
+                  className="h-11"
                 />
               </div>
 
@@ -112,7 +112,7 @@ export default function SignupPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 6 characters"
                   required
-                  className="bg-background h-11"
+                  className="h-11"
                 />
               </div>
 
@@ -128,7 +128,7 @@ export default function SignupPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter password"
                   required
-                  className="bg-background h-11"
+                  className="h-11"
                 />
               </div>
 

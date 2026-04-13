@@ -6,12 +6,12 @@ export function calculateStatus(
   optimalMax: number | null
 ): RiverStatus {
   if (flow === null || flow <= -999000) return 'ice_affected';
-  if (optimalMin === null || optimalMax === null) return 'unknown';
-  if (flow < optimalMin * 0.5)                        return 'low';
+  if (optimalMin === null || optimalMax === null) return 'low';
+  if (flow < optimalMin)                              return 'low';
   if (flow >= optimalMin && flow <= optimalMax)        return 'optimal';
   if (flow > optimalMax && flow <= optimalMax * 1.5)  return 'elevated';
   if (flow > optimalMax * 1.5)                        return 'high';
-  return 'unknown';
+  return 'low';
 }
 
 export function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): FlowTrend {
@@ -20,15 +20,27 @@ export function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): 
   return 'stable';
 }
 
-/** Tailwind bg+text classes for status badge (optimized for dark backgrounds) */
+/** Tailwind bg+text classes for status badge (light theme) */
 export function getStatusColor(status: RiverStatus): string {
+  switch (status) {
+    case 'optimal':      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'elevated':     return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'high':         return 'bg-red-100 text-red-800 border-red-200';
+    case 'low':          return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'ice_affected': return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+    default:             return 'bg-zinc-100 text-zinc-600 border-zinc-200';
+  }
+}
+
+/** Stronger badge style for hero/marketing use */
+export function getStatusColorSolid(status: RiverStatus): string {
   switch (status) {
     case 'optimal':      return 'bg-emerald-500 text-white border-transparent';
     case 'elevated':     return 'bg-amber-500 text-white border-transparent';
     case 'high':         return 'bg-red-500 text-white border-transparent';
     case 'low':          return 'bg-blue-500 text-white border-transparent';
     case 'ice_affected': return 'bg-cyan-500 text-white border-transparent';
-    default:             return 'bg-zinc-600 text-white border-transparent';
+    default:             return 'bg-zinc-500 text-white border-transparent';
   }
 }
 
@@ -40,7 +52,7 @@ export function getStatusBorderColor(status: RiverStatus): string {
     case 'high':         return 'border-l-red-500';
     case 'low':          return 'border-l-blue-500';
     case 'ice_affected': return 'border-l-cyan-500';
-    default:             return 'border-l-zinc-600';
+    default:             return 'border-l-zinc-400';
   }
 }
 
@@ -52,7 +64,7 @@ export function getStatusDotColor(status: RiverStatus): string {
     case 'high':         return 'bg-red-500';
     case 'low':          return 'bg-blue-500';
     case 'ice_affected': return 'bg-cyan-500';
-    default:             return 'bg-zinc-500';
+    default:             return 'bg-zinc-400';
   }
 }
 
