@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import CheckinForm from '@/components/checkin-form';
+import CheckinFeed from '@/components/checkin-feed';
 import {
   LineChart,
   Line,
@@ -58,12 +60,15 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     id, name, region, description, usgs_station_id,
     latitude, longitude, optimal_flow_min, optimal_flow_max,
     current_condition, conditions, species, is_favorite, user_note, trend, user,
+    checkins: initialCheckins = [],
   } = riverData;
 
-  const [isFavorite, setIsFavorite]   = useState(is_favorite);
-  const [note, setNote]               = useState(user_note?.note || '');
-  const [isSavingNote, setIsSavingNote] = useState(false);
-  const [toast, setToast]             = useState<Toast | null>(null);
+  const [isFavorite, setIsFavorite]       = useState(is_favorite);
+  const [note, setNote]                   = useState(user_note?.note || '');
+  const [isSavingNote, setIsSavingNote]   = useState(false);
+  const [toast, setToast]                 = useState<Toast | null>(null);
+  const [showCheckinForm, setShowCheckinForm] = useState(false);
+  const [checkins, setCheckins]           = useState<any[]>(initialCheckins);
 
   const status = current_condition?.status || 'low';
 
@@ -320,6 +325,44 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               </CardContent>
             </Card>
           )}
+
+          {/* Trip Reports */}
+          <Card>
+            <CardHeader className="pb-2 px-5 pt-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Trip Reports</CardTitle>
+                {!showCheckinForm && (
+                  <Button
+                    size="sm"
+                    variant={user ? 'default' : 'outline'}
+                    onClick={() => {
+                      if (!user) { window.location.href = '/login'; return; }
+                      setShowCheckinForm(true);
+                    }}
+                    className="gap-1.5"
+                  >
+                    <Fish className="h-3.5 w-3.5" />
+                    Log a Trip
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-5 space-y-4">
+              {showCheckinForm && (
+                <CheckinForm
+                  riverId={id}
+                  onCancel={() => setShowCheckinForm(false)}
+                  onSuccess={(newCheckin) => {
+                    setCheckins((prev) => [newCheckin, ...prev]);
+                    setShowCheckinForm(false);
+                    showToast({ type: 'success', message: 'Trip logged! Thanks for the report.' });
+                  }}
+                />
+              )}
+              <CheckinFeed initialCheckins={checkins} riverId={id} />
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* ── Sidebar ── */}
