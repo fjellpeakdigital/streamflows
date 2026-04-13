@@ -1,207 +1,281 @@
-# StreamFlows Redesign — Handoff Document
+# StreamFlows — Session Handoff Document
 
-## Branch
-`claude/redesign-streamflows-ux-SgwHu`
+## Project Overview
 
-## Status: ~40% complete
-All changes are **unstaged/uncommitted** on the branch. Nothing has been pushed yet.
+StreamFlows is a real-time river conditions platform for fly fishing. It pulls live gauge data from USGS and translates raw flow numbers into actionable fishing intelligence (Optimal, Elevated, High, Low, Gauge Not Responding, No Data).
 
----
-
-## What's Been Done (completed, working, uncommitted)
-
-### 1. Light Theme — `app/globals.css` (REWRITTEN)
-- Switched from dark navy theme to premium light theme
-- New palette: warm off-white background (`40 20% 97%`), dark slate foreground (`220 30% 18%`)
-- Primary color changed from BAF red (`0 55% 52%`) to river blue (`200 65% 38%`)
-- Accent color: sage/olive green (`155 30% 42%`)
-- Secondary: warm stone (`40 15% 93%`)
-- Added extended brand tokens: `--river-blue`, `--sage`, `--stone-warm`, `--slate-navy`
-- Status colors preserved (emerald/amber/red/blue/cyan)
-- Removed the `.light` class override (light is now default)
-- Removed dark-theme `select option` styling
-
-### 2. Button Component — `components/ui/button.tsx` (UPDATED)
-- Changed `rounded-md` to `rounded-lg` globally
-- Changed `font-medium` to `font-semibold`
-- Added `shadow-sm` to default and destructive variants
-- Outline variant: `bg-white` instead of `bg-background`, hover uses `bg-secondary`
-- Ghost variant: hover uses `bg-secondary`
-- Size `sm` and `lg` both use `rounded-lg`
-
-### 3. Card Component — `components/ui/card.tsx` (UPDATED)
-- Changed `rounded-lg` to `rounded-xl` on the Card base
-
-### 4. River Utils — `lib/river-utils.ts` (UPDATED)
-- `getStatusColor()`: Changed from solid white-text badges to soft light-theme badges (e.g., `bg-emerald-100 text-emerald-800 border-emerald-200`)
-- Added NEW function `getStatusColorSolid()` for hero/marketing contexts where solid badges are needed
-- Default unknown status: `bg-zinc-100 text-zinc-600`
-
-### 5. Navigation — `components/navigation.tsx` (REWRITTEN)
-- Light theme: `bg-white/90 backdrop-blur-md` with `border-border/60`
-- Logo wrapped in subtle `bg-primary/10` rounded box
-- Added "How It Works" and "For Guides" anchor links (`/#how-it-works`, `/#for-guides`)
-- Active state: `text-primary bg-primary/5` instead of filled primary button
-- CTA changed from "Sign Up" to "Get Started"
-- Mobile drawer: white background, lighter backdrop (`bg-black/20`)
-- Active mobile link: `bg-primary/10 text-primary` instead of solid primary fill
-- Hash links (`/#...`) excluded from `isActive()` matching
-
-### 6. Footer — `components/footer.tsx` (NEW FILE)
-- 4-column grid: Brand, Product, For You, Data
-- Brand section: logo + "A product by Back Alley Fly" tagline
-- Product links: Browse Rivers, How It Works, Features, Get Started
-- For You links: For Guides, For Anglers, Favorites, Alerts
-- Data section: USGS attribution, update frequency, coverage stats
-- Bottom bar: copyright + USGS data attribution
-- Light theme: `bg-white`, `border-t border-border`
+- **Live site**: https://streamflows.backalleyfly.com
+- **Repo**: fjellpeakdigital/streamflows
+- **Branch**: `main` (all work merged)
+- **Stack**: Next.js 16 + Supabase + Vercel (Pro plan)
+- **Database**: 1,552 rivers, ~2.6M condition rows (5 years seeded)
 
 ---
 
-## What Still Needs To Be Done
+## What Was Completed This Session
 
-### 7. **Homepage Rewrite — `app/page.tsx`** (THE BIG ONE — NOT STARTED)
-The current homepage has only 3 thin sections. Needs complete rewrite with 8 sections:
+### 1. Full UX Redesign (Light Theme)
 
-#### Section 1: Hero
-- Strong headline about real-time river conditions + fast decision-making
-- Subhead explaining value prop
-- Primary CTA ("View Live Conditions") + Secondary CTA ("Get Started Free")
-- Large product mockup/screenshot area showing a mocked StreamFlows river card UI
-- The mockup should show: river name, status badge, trend arrow, flow stats, mini sparkline
+Switched from dark navy theme to premium light theme with outdoorsy, fishing-forward feel.
 
-#### Section 2: Proof/Trust Bar
-- Stats strip: "50+ New England Rivers" / "6 States Covered" / "Updated Every 15 Min" / "Powered by USGS" / "River-Specific Tuned Ranges"
-- Clean horizontal layout with dividers, icons optional
+**Files changed:**
+- `app/globals.css` — Light theme CSS variables (warm off-white bg, river blue primary, sage accent)
+- `components/ui/button.tsx` — rounded-lg, font-semibold, subtle shadows
+- `components/ui/card.tsx` — rounded-xl cards
+- `components/navigation.tsx` — White glass nav with How It Works + For Guides links
+- `components/footer.tsx` — NEW: 4-column footer (Brand, Product, For You, Data)
+- `components/river-card.tsx` — Light shadows, white bg, trend colors, "last updated" timestamp
+- `app/layout.tsx` — Footer integration, updated metadata
+- `app/login/page.tsx` — White cards, subtle shadows, light-theme errors
+- `app/signup/page.tsx` — Same light theme treatment
+- `app/rivers/[slug]/river-detail.tsx` — Chart colors updated for light theme (white tooltip, lighter grid, primary blue flow line, sage temp line)
+- `lib/river-utils.ts` — Light theme status badge colors, getStatusColorSolid()
 
-#### Section 3: Live River Snapshot
-- 3-4 example river cards shown directly on homepage
-- Mocked data is fine (Deerfield, Swift, Farmington, etc.)
-- Each card: river name, state, flow CFS, status badge, trend indicator, mini sparkline
-- Section title like "What's fishing right now"
+### 2. Homepage Rewrite (8 Sections)
 
-#### Section 4: How It Works (`id="how-it-works"`)
-- 3-4 step visual explanation:
-  1. Live USGS gauge data pulled every 15 minutes
-  2. River-specific thresholds tuned for fishing conditions
-  3. Translated into clear status labels (Optimal, Elevated, etc.)
-  4. Trend + historical context for decision-making
-- Use numbered steps or icons, not just paragraphs
+`app/page.tsx` — Complete rewrite with:
+1. **Hero** — headline, value prop, dual CTAs, mocked product screenshot with 4 river cards
+2. **Trust Bar** — 50+ rivers, 6 states, update frequency, USGS powered, tuned ranges
+3. **Live River Snapshot** — 4 mocked river cards (Deerfield, Farmington, Swift, Battenkill)
+4. **How It Works** — 4-step data pipeline explanation
+5. **Feature Deep-Dives** — 5 rich feature blocks with practical copy
+6. **Audience** — For Guides / For Serious Anglers split with benefits
+7. **USGS Comparison** — Without vs With StreamFlows
+8. **Final CTA** — Closing conversion section
 
-#### Section 5: Feature Deep-Dives (`id="features"`)
-- 5 richer feature sections (not the old 4 tiny cards):
-  1. **Know what's fishable now** — status badges, real-time conditions
-  2. **See where conditions are headed** — trend arrows, 24-hour charts
-  3. **Watch your home waters** — favorites dashboard
-  4. **Get alerts when the river turns on** — smart notifications
-  5. **Keep private notes on rivers** — guide notes
-- Each should have: headline, 2-3 sentence description, visual/icon
+### 3. USGS Data Pipeline Overhaul
 
-#### Section 6: Audience Section (`id="for-guides"`)
-- Split layout: "For Guides" / "For Serious Anglers"
-- For Guides: quick client-day decisions, multi-river monitoring, private notes
-- For Anglers: stop checking multiple USGS pages, track favorites, get alerts
+**Split cron architecture:**
+- `/api/cron/fetch-data` — Hourly, IV (instantaneous values) for realtime gauges (~99 rivers, ~8s)
+- `/api/cron/fetch-daily` — Daily at 6am UTC, DV (daily values) for daily-only gauges (~1,453 rivers, 300s timeout)
+- `vercel.json` — Both schedules configured
 
-#### Section 7: "Why Not Just Use USGS?" Comparison
-- Two-column comparison:
-  - **Without StreamFlows**: multiple tabs, raw CFS interpretation, guesswork, missed windows
-  - **With StreamFlows**: one dashboard, clear status labels, trends, alerts, river-specific intelligence
-- Visual contrast between the two sides
+**Shared USGS library:** `lib/usgs.ts`
+- Batched API calls (50 sites per request, 3 concurrent)
+- `fetchAllSites()`, `fetchUSGSBatch()`, `parseUSGSResponse()`, `chunk()`, `runWithConcurrency()`
 
-#### Section 8: Final CTA
-- Strong closing section encouraging sign up or river browsing
-- Primary + secondary CTAs
-- Reinforce the value proposition
+**Gauge type detection:**
+- `/api/cron/detect-gauge-types` — Tests all stations against IV endpoint, classifies as 'realtime' or 'daily'
+- `rivers.gauge_type` column: 'realtime' (99) or 'daily' (1,453)
 
-### 8. River Card — `components/river-card.tsx` (NOT STARTED)
-- Update for light theme compatibility
-- `hover:shadow-black/30` → lighter shadow
-- `bg-secondary/40` stat boxes → needs light-theme appropriate bg
-- Colors should work with new light palette
+### 4. Historical Data Seeding
 
-### 9. Login/Signup Pages (NOT STARTED)
-- `app/login/page.tsx` and `app/signup/page.tsx`
-- Update `bg-card` → light theme card
-- Remove `shadow-black/20` dark shadows
-- Droplets icon container should use new primary (river blue)
-- Form cards need light-appropriate styling
+- `/api/seed` — Fetches USGS daily values by year/offset/batch, calculates status, bulk inserts
+- `/admin/seed` — Browser-based runner with live progress log, stats dashboard, stop/resume
+- **Seeded**: 2,608,832 rows across 5 years (2021-2025)
 
-### 10. Rivers List Page (NOT STARTED)
-- `app/rivers/page.tsx` — status summary bar needs light theme tweaks
-- `app/rivers/rivers-list.tsx` — filter bar `bg-card` will auto-adapt, but check shadows/borders
+### 5. Optimal Range Calculation
 
-### 11. River Detail Page (NOT STARTED)
-- `app/rivers/[slug]/river-detail.tsx`
-- Chart colors hardcoded to dark HSL values — needs light theme colors:
-  - CartesianGrid stroke: `hsl(215,23%,18%)` → lighter grid
-  - XAxis/YAxis fill: `hsl(215,16%,55%)` → appropriate for light bg
-  - Tooltip bg: `hsl(220,38%,11%)` → white with border
-  - Line strokes: red primary → new river blue primary
-- Toast colors should work as-is (solid green/red)
+- `/api/cron/calculate-ranges` — Fetches 1 year of USGS DV data, calculates P25/P75 as optimal range
+- Also calculated ranges from stored conditions via SQL (PERCENTILE_CONT)
+- **Coverage**: 1,477 of 1,552 rivers have optimal ranges (95%)
+- Remaining 75 have no discharge data in USGS
 
-### 12. Root Layout — `app/layout.tsx` (NOT STARTED)
-- Add Footer component import and render after `{children}`
-- Consider updating metadata description to match new positioning
+### 6. Status Calculation Fixes
 
-### 13. Build & Verify (NOT STARTED)
-- `npm run build` to check for TypeScript/compilation errors
-- Verify `getStatusColorSolid` export is used correctly if referenced in homepage
+- Closed gap where flow between 0.5*optimalMin and optimalMin returned 'unknown'
+- Rivers without ranges show 'unknown' status → "No Data" label (gray badge)
+- Renamed 'ice_affected' display label from "Ice Affected" to "Gauge Not Responding" (slate gray styling)
+- Added 'unknown' to DB check constraint, status summary bar, and filter dropdown
 
 ---
 
-## Key Design Decisions Already Made
+## Current Architecture
+
+### Database Schema (Supabase)
+
+```
+rivers
+  - id, name, slug, usgs_station_id, region
+  - optimal_flow_min, optimal_flow_max
+  - latitude, longitude, description
+  - gauge_type ('realtime' | 'daily')
+
+conditions
+  - id, river_id, timestamp, flow, temperature, gage_height
+  - status ('optimal'|'elevated'|'high'|'low'|'ice_affected'|'unknown')
+  - trend ('rising'|'falling'|'stable'|'unknown')
+  - UNIQUE(river_id, timestamp)
+  - CHECK constraint on status
+
+river_species  (river_id, species)
+user_favorites (user_id, river_id)
+user_notes     (user_id, river_id, note)
+user_alerts    (user_id, river_id, alert_type, threshold_value, is_active)
+```
+
+### Supabase Settings
+- **Max Rows** was increased from 1,000 to 5,000+ (Settings → API)
+- All queries use `.limit(5000)` to avoid the default 1,000-row cap
+
+### API Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/api/cron/fetch-data` | Hourly realtime cron (IV data, gauge_type != 'daily') |
+| `/api/cron/fetch-daily` | Daily cron at 6am UTC (DV data, gauge_type = 'daily') |
+| `/api/cron/detect-gauge-types` | One-time: classify stations as realtime/daily |
+| `/api/cron/calculate-ranges` | One-time: calculate optimal ranges from USGS history |
+| `/api/cron/calculate-ranges-from-conditions` | Directory exists but logic was done via SQL instead |
+| `/api/seed` | Historical data seeding endpoint |
+| `/api/favorites` | POST/DELETE user favorites |
+| `/api/notes` | POST/DELETE user notes |
+| `/api/alerts` | POST/PATCH/DELETE user alerts |
+
+### Vercel Cron Config (`vercel.json`)
+```json
+{
+  "crons": [
+    { "path": "/api/cron/fetch-data", "schedule": "0 * * * *" },
+    { "path": "/api/cron/fetch-daily", "schedule": "0 6 * * *" }
+  ]
+}
+```
+
+### Environment Variables (Vercel)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET`
+
+---
+
+## Pending / Needs Attention
+
+### 1. Recalculate Stored Statuses (SQL — not yet run)
+
+The most recent condition row for each river still has the old status from before ranges were updated. Run this:
+
+```sql
+UPDATE conditions c
+SET status = CASE
+  WHEN c.flow IS NULL OR c.flow <= -999000 THEN 'ice_affected'
+  WHEN r.optimal_flow_min IS NULL OR r.optimal_flow_max IS NULL THEN 'unknown'
+  WHEN c.flow < r.optimal_flow_min THEN 'low'
+  WHEN c.flow >= r.optimal_flow_min AND c.flow <= r.optimal_flow_max THEN 'optimal'
+  WHEN c.flow > r.optimal_flow_max AND c.flow <= r.optimal_flow_max * 1.5 THEN 'elevated'
+  WHEN c.flow > r.optimal_flow_max * 1.5 THEN 'high'
+  ELSE 'unknown'
+END
+FROM rivers r
+WHERE c.river_id = r.id
+  AND c.id IN (
+    SELECT DISTINCT ON (river_id) id
+    FROM conditions
+    ORDER BY river_id, timestamp DESC
+  );
+```
+
+### 2. Region Normalization
+
+Some rivers have full state names ("Maine", "Vermont") and some have abbreviations ("ME", "VT"). SQL to standardize was provided but not confirmed run:
+
+```sql
+UPDATE rivers SET region = 'New Hampshire' WHERE region = 'NH';
+UPDATE rivers SET region = 'Vermont' WHERE region = 'VT';
+UPDATE rivers SET region = 'Maine' WHERE region = 'ME';
+UPDATE rivers SET region = 'Massachusetts' WHERE region = 'MA';
+UPDATE rivers SET region = 'Connecticut' WHERE region = 'CT';
+UPDATE rivers SET region = 'Rhode Island' WHERE region = 'RI';
+```
+
+### 3. Stale Gauge Cleanup
+
+3 rivers consistently return stale data:
+- Nezinscot River at Turner Center, Maine (2025 timestamp)
+- Roach River (1991 timestamp)
+- Rapid River (1996 timestamp)
+
+These could be removed or flagged as inactive.
+
+### 4. 75 Rivers Still Missing Optimal Ranges
+
+These stations have no discharge data in either USGS IV or DV endpoints. They'll show "No Data" status.
+
+### 5. Homepage Copy References "15 minutes"
+
+The homepage hero eyebrow and trust bar say "Updated Every 15 Min" but the cron now runs hourly. Consider updating to "Updated Hourly" or "Updated regularly from live USGS data."
+
+---
+
+## Future Feature Ideas Discussed
+
+### Weather Forecasting Integration
+- Use NOAA/NWS or Open-Meteo for precipitation forecasts
+- Predict flow changes: "Rain expected upstream — flows likely rising in 6-12 hours"
+- Weekend outlook per river
+- Needs watershed mapping (which weather station affects which river)
+- Scoped as separate feature build
+
+### Custom Domain
+- `streamflows.backalleyfly.com` is configured via CNAME on SiteGround pointing to `cname.vercel-dns.com`
+- SSL handled by Vercel
+
+---
+
+## Key Design Decisions
 
 | Decision | Value |
 |----------|-------|
-| Primary color | River blue `hsl(200, 65%, 38%)` — teal-blue, not the old BAF red |
+| Primary color | River blue `hsl(200, 65%, 38%)` |
 | Background | Warm off-white `hsl(40, 20%, 97%)` |
-| Cards | Pure white `hsl(0, 0%, 100%)` |
+| Cards | Pure white |
 | Text | Dark slate `hsl(220, 30%, 18%)` |
 | Accent | Sage green `hsl(155, 30%, 42%)` |
-| Border radius | `0.625rem` (slightly larger) |
-| Status badges | Soft tinted backgrounds (light theme) via `getStatusColor()` |
-| Solid status badges | Available via `getStatusColorSolid()` for marketing use |
-| Nav style | White glass with backdrop blur |
-| Buttons | `rounded-lg`, `font-semibold`, subtle shadows |
+| Status: Optimal | Emerald green (tinted badge) |
+| Status: Elevated | Amber (tinted badge) |
+| Status: High | Red (tinted badge) |
+| Status: Low | Blue (tinted badge) |
+| Status: Gauge Not Responding | Slate gray (tinted badge) |
+| Status: No Data | Zinc gray (tinted badge) |
+| Tone | Outdoorsy, confident, practical — not corporate SaaS |
 
-## File Map
+---
+
+## File Map (key files)
 
 ```
-MODIFIED (uncommitted):
-  app/globals.css              — Light theme CSS variables
-  components/navigation.tsx    — Redesigned nav
-  components/ui/button.tsx     — Light theme button variants
-  components/ui/card.tsx       — rounded-xl cards
-  lib/river-utils.ts           — Light theme status colors + getStatusColorSolid()
+app/
+  page.tsx                          — Homepage (8 sections)
+  layout.tsx                        — Root layout with Nav + Footer
+  globals.css                       — Light theme CSS variables
+  login/page.tsx                    — Login page
+  signup/page.tsx                   — Signup page
+  rivers/
+    page.tsx                        — Rivers list (server component)
+    rivers-list.tsx                 — Client-side filtering
+    [slug]/
+      page.tsx                      — River detail (server)
+      river-detail.tsx              — River detail (client, charts)
+  favorites/page.tsx                — User favorites
+  alerts/
+    page.tsx                        — Alerts management
+    alerts-list.tsx                 — Alerts client component
+  admin/seed/page.tsx               — Seed runner UI
+  api/
+    cron/
+      fetch-data/route.ts           — Hourly realtime cron
+      fetch-daily/route.ts          — Daily DV cron
+      detect-gauge-types/route.ts   — Gauge type classifier
+      calculate-ranges/route.ts     — USGS historical range calculator
+    seed/route.ts                   — Historical data seeder
+    favorites/route.ts              — Favorites API
+    notes/route.ts                  — Notes API
+    alerts/route.ts                 — Alerts API
 
-NEW (uncommitted):
-  components/footer.tsx        — Footer component
+components/
+  navigation.tsx                    — Sticky nav with light glass effect
+  footer.tsx                        — 4-column footer
+  river-card.tsx                    — River card with status, trend, timestamp
+  ui/
+    button.tsx, card.tsx, badge.tsx, input.tsx, select.tsx, textarea.tsx
 
-NOT YET TOUCHED:
-  app/page.tsx                 — Homepage (needs full rewrite — 8 sections)
-  app/layout.tsx               — Needs footer integration
-  components/river-card.tsx    — Needs light theme update
-  app/login/page.tsx           — Needs light theme update
-  app/signup/page.tsx          — Needs light theme update
-  app/rivers/page.tsx          — Minor light theme tweaks
-  app/rivers/rivers-list.tsx   — Minor light theme tweaks
-  app/rivers/[slug]/river-detail.tsx — Chart colors need light theme update
+lib/
+  river-utils.ts                    — Status calculation, colors, labels, formatting
+  usgs.ts                           — USGS API batching, parsing, concurrency
+  types/database.ts                 — TypeScript types
+  utils.ts                          — cn() helper
+  supabase/
+    server.ts                       — Server-side Supabase client
+    client.ts                       — Browser-side Supabase client
 ```
-
-## How to Continue
-
-1. Start with `app/page.tsx` — write the full 8-section homepage (this is the highest-impact change)
-2. Then update `app/layout.tsx` to include the Footer
-3. Update `components/river-card.tsx` for light theme
-4. Update the remaining pages (login, signup, rivers, river detail) — mostly shadow/color tweaks
-5. Run `npm run build` to verify everything compiles
-6. Commit all changes and push to `claude/redesign-streamflows-ux-SgwHu`
-
-## Copy/Tone Guidelines
-- Clear, specific, confident
-- Slightly rugged / outdoors-informed
-- Not corporate or startup-y
-- Focus on decision-making and usefulness
-- "fishing intelligence" not "analytics platform"
-- "river conditions" not "data visualization"
-- Speak like people who understand fishing built this
