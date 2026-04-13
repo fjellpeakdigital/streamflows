@@ -616,7 +616,82 @@ function AudienceSection() {
 }
 
 /* ────────────────────────────────────────────
-   Sections 7-8 — Placeholders (to be built)
+   Section 7 — "Why Not Just Use USGS?" Comparison
+   ──────────────────────────────────────────── */
+
+const withoutItems = [
+  'Open multiple USGS pages for each river',
+  'Interpret raw CFS numbers yourself',
+  'Guess whether conditions are fishable',
+  'No trend context — just a single snapshot',
+  'Miss optimal windows because you weren\u2019t checking',
+  'No way to save rivers or take notes',
+];
+
+const withItems = [
+  'One dashboard for all 50+ rivers',
+  'Clear status labels: Optimal, Elevated, High, Low',
+  'Know instantly which rivers are fishing well',
+  'Trend arrows and 24-hour charts show direction',
+  'Alerts notify you the moment conditions change',
+  'Favorites, notes, and alerts — all in one place',
+];
+
+function ComparisonSection() {
+  return (
+    <section className="container mx-auto px-4 py-16 md:py-20">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+          Why not just use USGS directly?
+        </h2>
+        <p className="text-muted-foreground max-w-xl mx-auto">
+          USGS provides great raw data. StreamFlows makes it useful for fishing.
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {/* Without */}
+        <div className="bg-white rounded-2xl border border-border p-6 md:p-8">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-red-100">
+              <XCircle className="h-5 w-5 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Without StreamFlows</h3>
+          </div>
+          <ul className="space-y-3">
+            {withoutItems.map((item) => (
+              <li key={item} className="flex items-start gap-2.5">
+                <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <span className="text-sm text-muted-foreground leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* With */}
+        <div className="bg-white rounded-2xl border-2 border-primary/20 p-6 md:p-8 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">With StreamFlows</h3>
+          </div>
+          <ul className="space-y-3">
+            {withItems.map((item) => (
+              <li key={item} className="flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span className="text-sm text-foreground leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Section 8 — Placeholder (to be built)
    ──────────────────────────────────────────── */
 
 export default function Home() {
@@ -628,6 +703,7 @@ export default function Home() {
       <HowItWorksSection />
       <FeaturesSection />
       <AudienceSection />
+      <ComparisonSection />
     </div>
   );
 }
