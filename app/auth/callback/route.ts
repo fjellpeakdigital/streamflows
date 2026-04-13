@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const type = requestUrl.searchParams.get('type');
+  const next = requestUrl.searchParams.get('next') ?? '/rivers';
   const origin = requestUrl.origin;
 
   if (code) {
@@ -13,9 +14,9 @@ export async function GET(request: Request) {
   }
 
   // Password recovery links should land on the reset-password page
-  if (type === 'recovery') {
+  if (type === 'recovery' || next === '/reset-password') {
     return NextResponse.redirect(`${origin}/reset-password`);
   }
 
-  return NextResponse.redirect(`${origin}/rivers`);
+  return NextResponse.redirect(`${origin}${next}`);
 }
