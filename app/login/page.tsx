@@ -23,7 +23,14 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setError(error.message); return; }
+      if (error) {
+        if (error.message.toLowerCase().includes('invalid login credentials') || error.status === 400) {
+          setError('Invalid email or password. If you just signed up, check your email for a confirmation link. You can also reset your password below.');
+        } else {
+          setError(error.message);
+        }
+        return;
+      }
       router.push('/rivers');
       router.refresh();
     } catch {
@@ -78,6 +85,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-sm font-medium">
                   Password
                 </label>
+                <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                  Forgot password?
+                </Link>
               </div>
               <Input
                 id="password"
