@@ -6,12 +6,12 @@ export function calculateStatus(
   optimalMax: number | null
 ): RiverStatus {
   if (flow === null || flow <= -999000) return 'ice_affected';
-  if (optimalMin === null || optimalMax === null) return 'unknown';
-  if (flow < optimalMin * 0.5)                        return 'low';
+  if (optimalMin === null || optimalMax === null) return 'low';
+  if (flow < optimalMin)                              return 'low';
   if (flow >= optimalMin && flow <= optimalMax)        return 'optimal';
   if (flow > optimalMax && flow <= optimalMax * 1.5)  return 'elevated';
   if (flow > optimalMax * 1.5)                        return 'high';
-  return 'unknown';
+  return 'low';
 }
 
 export function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): FlowTrend {

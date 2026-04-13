@@ -104,6 +104,14 @@ export async function GET(request: Request) {
           }
         }
 
+        // Skip stale data (timestamps older than 24 hours indicate decommissioned gauges)
+        const dataAge = Date.now() - new Date(timestamp).getTime();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (dataAge > twentyFourHours) {
+          errors.push(`${river.name}: stale data (timestamp: ${timestamp}), skipping`);
+          continue;
+        }
+
         // Calculate status using utility function
         const status = calculateStatus(
           flow,
