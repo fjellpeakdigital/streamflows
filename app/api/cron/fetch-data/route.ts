@@ -141,7 +141,7 @@ export async function GET(request: Request) {
         });
 
         if (insertError) {
-          console.error(`Error inserting condition for ${river.name}:`, insertError);
+          errors.push(`INSERT ${river.name}: ${JSON.stringify(insertError)}`);
         } else {
           results.push({
             river: river.name,
