@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/fetch-data",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/fetch-daily",
+      "schedule": "0 6 * * *"
     }
   ]
 }

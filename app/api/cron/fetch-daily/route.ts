@@ -4,7 +4,7 @@ import { fetchAllSites } from '@/lib/usgs';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const startTime = Date.now();
@@ -25,34 +25,34 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Only fetch realtime (IV) rivers
+    // Only fetch daily (DV) rivers
     const { data: rivers, error: riversError } = await supabase
       .from('rivers')
       .select('*')
-      .neq('gauge_type', 'daily');
+      .eq('gauge_type', 'daily');
 
     if (riversError || !rivers) {
       throw new Error('Failed to fetch rivers');
     }
 
-    console.log(`[cron:realtime] Fetching IV data for ${rivers.length} rivers`);
+    console.log(`[cron:daily] Fetching DV data for ${rivers.length} rivers`);
     const results: Array<{ river: string; flow: number | null; temperature: number | null; status: string }> = [];
     const errors: string[] = [];
 
     // Collect unique station IDs
     const stationIds = Array.from(new Set(rivers.map((r) => r.usgs_station_id)));
 
-    // Fetch IV data
-    const allSiteData = await fetchAllSites(stationIds, 'iv', errors, 50, 3);
+    // Fetch DV data with larger batches
+    const allSiteData = await fetchAllSites(stationIds, 'dv', errors, 100, 5);
 
     // Fetch old flows for trend calculation
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const riverIds = rivers.map((r) => r.id);
     const { data: oldConditions } = await supabase
       .from('conditions')
       .select('river_id, flow, timestamp')
       .in('river_id', riverIds)
-      .lte('timestamp', threeHoursAgo)
+      .lte('timestamp', oneDayAgo)
       .order('timestamp', { ascending: false });
 
     const oldFlowMap = new Map<string, number>();
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     }
 
     // Process rivers
-    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
     const inserts: Array<{
       river_id: string;
       timestamp: string;
@@ -85,8 +85,8 @@ export async function GET(request: Request) {
       }
 
       const dataAge = Date.now() - new Date(siteData.timestamp).getTime();
-      if (dataAge > twentyFourHours) {
-        errors.push(`${river.name}: stale IV data (${siteData.timestamp}), skipping`);
+      if (dataAge > sevenDays) {
+        errors.push(`${river.name}: stale DV data (${siteData.timestamp}), skipping`);
         continue;
       }
 
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
       const { error: insertError } = await supabase.from('conditions').insert(inserts);
 
       if (insertError) {
-        console.log(`[cron:realtime] Batch insert failed, falling back to individual: ${insertError.message}`);
+        console.log(`[cron:daily] Batch insert failed, falling back to individual: ${insertError.message}`);
         let inserted = 0;
         for (const row of inserts) {
           const { error: rowError } = await supabase.from('conditions').insert(row);
@@ -130,18 +130,18 @@ export async function GET(request: Request) {
             inserted++;
           }
         }
-        console.log(`[cron:realtime] Individual inserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
+        console.log(`[cron:daily] Individual inserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
       } else {
-        console.log(`[cron:realtime] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
+        console.log(`[cron:daily] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
       }
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`[cron:realtime] Complete: ${results.length}/${rivers.length} rivers in ${totalTime}ms`);
+    console.log(`[cron:daily] Complete: ${results.length}/${rivers.length} rivers in ${totalTime}ms`);
 
     return NextResponse.json({
       success: true,
-      cron: 'realtime',
+      cron: 'daily',
       total_rivers: rivers.length,
       processed: results.length,
       no_data_count: noDataCount,
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       results,
     });
   } catch (error: any) {
-    console.error('Error in realtime cron:', error);
+    console.error('Error in daily cron:', error);
     return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }
