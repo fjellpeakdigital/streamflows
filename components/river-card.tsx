@@ -12,7 +12,14 @@ import {
   formatFlow,
   formatTemperature,
 } from '@/lib/river-utils';
-import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves, Clock } from 'lucide-react';
+import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves, Clock, Fish } from 'lucide-react';
+
+const ANGLER_BADGE: Record<string, string> = {
+  poor:      'bg-red-50     text-red-600     border-red-200',
+  fair:      'bg-amber-50   text-amber-600   border-amber-200',
+  good:      'bg-emerald-50 text-emerald-700 border-emerald-200',
+  excellent: 'bg-primary/8  text-primary     border-primary/20',
+};
 
 interface RiverCardProps {
   river: RiverWithCondition;
@@ -34,6 +41,7 @@ export function RiverCard({
   const condition = river.current_condition;
   const status = condition?.status || 'low';
   const trend = river.trend || 'stable';
+  const anglerRating = river.angler_rating;
 
   return (
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
@@ -77,7 +85,7 @@ export function RiverCard({
           </div>
 
           {/* Status + trend */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge className={`${getStatusColor(status)} text-xs px-2 py-0.5 rounded-md font-semibold`}>
               {getStatusLabel(status)}
             </Badge>
@@ -85,6 +93,15 @@ export function RiverCard({
               <TrendIcon trend={trend} />
               <span className="capitalize">{trend}</span>
             </div>
+            {anglerRating && (
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border ${ANGLER_BADGE[anglerRating.label] ?? ANGLER_BADGE.fair}`}
+                title={`${anglerRating.count} angler report${anglerRating.count !== 1 ? 's' : ''} in the last 7 days`}
+              >
+                <Fish className="h-2.5 w-2.5" />
+                {anglerRating.label.charAt(0).toUpperCase() + anglerRating.label.slice(1)}
+              </span>
+            )}
           </div>
 
           {/* Flow + Temp stats */}
