@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Menu, X, Droplets, Heart, Bell, Map, Compass, Users } from 'lucide-react';
+import { Menu, X, Droplets, Heart, Bell, Map, Compass, Users, LayoutDashboard } from 'lucide-react';
 
 interface NavLink {
   href: string;
@@ -18,6 +18,7 @@ const allNavLinks: NavLink[] = [
   { href: '/rivers', label: 'Rivers', icon: Map },
   { href: '/#how-it-works', label: 'How It Works', icon: Compass },
   { href: '/#for-guides', label: 'For Guides', icon: Users },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authRequired: true },
   { href: '/favorites', label: 'Favorites', icon: Heart, authRequired: true },
   { href: '/alerts', label: 'Alerts', icon: Bell, authRequired: true },
 ];
@@ -131,7 +132,7 @@ export function Navigation({ user }: { user: any }) {
           />
 
           {/* Drawer panel */}
-          <div className="fixed top-16 left-0 right-0 z-50 md:hidden bg-white border-b border-border shadow-lg">
+          <div className="fixed top-16 left-0 right-0 z-50 md:hidden bg-white border-b border-border shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
             <nav className="container mx-auto px-4 py-4">
               <ul className="space-y-1" role="list">
                 {navLinks.map(({ href, label, icon: Icon }) => (
