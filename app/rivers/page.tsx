@@ -11,7 +11,8 @@ async function getRivers() {
   const { data: rivers, error: riversError } = await supabase
     .from('rivers')
     .select('*')
-    .order('name');
+    .order('name')
+    .limit(5000);
 
   if (riversError) {
     console.error('Error fetching rivers:', riversError);
@@ -21,11 +22,13 @@ async function getRivers() {
   const { data: conditions } = await supabase
     .from('conditions')
     .select('*')
-    .order('timestamp', { ascending: false });
+    .order('timestamp', { ascending: false })
+    .limit(10000);
 
   const { data: species } = await supabase
     .from('river_species')
-    .select('*');
+    .select('*')
+    .limit(10000);
 
   const { data: { user } } = await supabase.auth.getUser();
 

@@ -29,7 +29,8 @@ export async function GET(request: Request) {
     const { data: rivers, error: riversError } = await supabase
       .from('rivers')
       .select('*')
-      .neq('gauge_type', 'daily');
+      .neq('gauge_type', 'daily')
+      .limit(5000);
 
     if (riversError || !rivers) {
       throw new Error('Failed to fetch rivers');
