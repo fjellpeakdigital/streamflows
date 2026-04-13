@@ -5,45 +5,50 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Menu, X, Droplets, Heart, Bell, Map } from 'lucide-react';
+import { Menu, X, Droplets, Heart, Bell, Map, Compass, Users } from 'lucide-react';
 
 interface NavLink {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  authRequired?: boolean;
 }
+
+const allNavLinks: NavLink[] = [
+  { href: '/rivers', label: 'Rivers', icon: Map },
+  { href: '/#how-it-works', label: 'How It Works', icon: Compass },
+  { href: '/#for-guides', label: 'For Guides', icon: Users },
+  { href: '/favorites', label: 'Favorites', icon: Heart, authRequired: true },
+  { href: '/alerts', label: 'Alerts', icon: Bell, authRequired: true },
+];
 
 export function Navigation({ user }: { user: any }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path: string) =>
-    pathname === path || (path !== '/' && pathname.startsWith(path));
+    pathname === path || (path !== '/' && !path.startsWith('/#') && pathname.startsWith(path));
 
-  const navLinks: NavLink[] = [
-    { href: '/rivers', label: 'Rivers', icon: Map },
-    ...(user
-      ? [
-          { href: '/favorites', label: 'Favorites', icon: Heart },
-          { href: '/alerts', label: 'Alerts', icon: Bell },
-        ]
-      : []),
-  ];
+  const navLinks = allNavLinks.filter(
+    (link) => !link.authRequired || user
+  );
 
   return (
     <>
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <nav className="sticky top-0 z-50 border-b border-border/60 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
 
             {/* Logo */}
             <Link
               href="/"
-              className="flex items-center gap-2 group"
+              className="flex items-center gap-2.5 group"
               onClick={() => setMobileOpen(false)}
             >
-              <Droplets className="h-6 w-6 text-primary transition-transform group-hover:scale-110" />
-              <span className="text-xl font-bold tracking-tight">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+                <Droplets className="h-4.5 w-4.5 text-primary transition-transform group-hover:scale-110" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-foreground">
                 Stream<span className="text-primary">Flows</span>
               </span>
             </Link>
@@ -53,10 +58,13 @@ export function Navigation({ user }: { user: any }) {
               {navLinks.map(({ href, label }) => (
                 <Link key={href} href={href}>
                   <Button
-                    variant={isActive(href) ? 'default' : 'ghost'}
+                    variant="ghost"
                     size="sm"
                     className={cn(
-                      !isActive(href) && 'text-muted-foreground hover:text-foreground'
+                      'text-sm font-medium',
+                      isActive(href)
+                        ? 'text-primary bg-primary/5'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     {label}
@@ -81,12 +89,12 @@ export function Navigation({ user }: { user: any }) {
               ) : (
                 <div className="hidden md:flex items-center gap-2">
                   <Link href="/login">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium">
                       Log In
                     </Button>
                   </Link>
                   <Link href="/signup">
-                    <Button size="sm">Sign Up</Button>
+                    <Button size="sm">Get Started</Button>
                   </Link>
                 </div>
               )}
@@ -117,13 +125,13 @@ export function Navigation({ user }: { user: any }) {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
 
           {/* Drawer panel */}
-          <div className="fixed top-16 left-0 right-0 z-50 md:hidden bg-card border-b border-border shadow-2xl">
+          <div className="fixed top-16 left-0 right-0 z-50 md:hidden bg-white border-b border-border shadow-lg">
             <nav className="container mx-auto px-4 py-4">
               <ul className="space-y-1" role="list">
                 {navLinks.map(({ href, label, icon: Icon }) => (
@@ -134,7 +142,7 @@ export function Navigation({ user }: { user: any }) {
                       className={cn(
                         'flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors',
                         isActive(href)
-                          ? 'bg-primary text-primary-foreground'
+                          ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                       )}
                     >
@@ -166,7 +174,7 @@ export function Navigation({ user }: { user: any }) {
                     </Link>
                     <Link href="/signup" onClick={() => setMobileOpen(false)}>
                       <Button size="sm" className="w-full">
-                        Sign Up
+                        Get Started
                       </Button>
                     </Link>
                   </div>
