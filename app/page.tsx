@@ -385,7 +385,75 @@ function LiveSnapshotSection() {
 }
 
 /* ────────────────────────────────────────────
-   Sections 4-8 — Placeholders (to be built)
+   Section 4 — How It Works
+   ──────────────────────────────────────────── */
+
+const howItWorksSteps = [
+  {
+    number: '01',
+    icon: Radio,
+    title: 'Live USGS gauge data',
+    description:
+      'We pull discharge, temperature, and gage height directly from USGS Water Services stations every 15 minutes.',
+  },
+  {
+    number: '02',
+    icon: SlidersHorizontal,
+    title: 'River-specific thresholds',
+    description:
+      'Each river has hand-tuned optimal flow ranges based on real fishing conditions — not generic defaults.',
+  },
+  {
+    number: '03',
+    icon: Target,
+    title: 'Actionable status labels',
+    description:
+      'Raw CFS numbers become clear conditions: Optimal, Elevated, High, Low, or Ice-Affected. No interpretation needed.',
+  },
+  {
+    number: '04',
+    icon: BarChart3,
+    title: 'Trends and context',
+    description:
+      'See whether flows are rising, falling, or stable — plus 24-hour charts so you can spot the window before it closes.',
+  },
+];
+
+function HowItWorksSection() {
+  return (
+    <section id="how-it-works" className="bg-white border-y border-border">
+      <div className="container mx-auto px-4 py-16 md:py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+            How StreamFlows works
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            We turn raw government gauge data into fishing intelligence you can act on in seconds.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {howItWorksSteps.map(({ number, icon: Icon, title, description }) => (
+            <div key={number} className="relative">
+              {/* Step number */}
+              <div className="text-5xl font-bold text-primary/10 leading-none mb-3">
+                {number}
+              </div>
+              <div className="flex items-center justify-center h-11 w-11 rounded-lg bg-primary/8 mb-3">
+                <Icon className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground text-base mb-2">{title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Sections 5-8 — Placeholders (to be built)
    ──────────────────────────────────────────── */
 
 export default function Home() {
@@ -394,6 +462,7 @@ export default function Home() {
       <HeroSection />
       <TrustBar />
       <LiveSnapshotSection />
+      <HowItWorksSection />
     </div>
   );
 }
