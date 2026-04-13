@@ -453,7 +453,89 @@ function HowItWorksSection() {
 }
 
 /* ────────────────────────────────────────────
-   Sections 5-8 — Placeholders (to be built)
+   Section 5 — Feature Deep-Dives
+   ──────────────────────────────────────────── */
+
+const features = [
+  {
+    icon: Gauge,
+    title: 'Know what\u2019s fishable right now',
+    description:
+      'Every river shows a clear status — Optimal, Elevated, High, Low, or Ice-Affected. No more squinting at raw CFS numbers trying to decide if conditions are worth the drive.',
+    detail: 'Status is calculated from river-specific optimal ranges, not generic thresholds.',
+  },
+  {
+    icon: BarChart3,
+    title: 'See where conditions are headed',
+    description:
+      'Trend arrows and 24-hour flow charts show whether a river is rising, falling, or holding steady. Spot the window opening — or closing — before anyone else does.',
+    detail: 'Trends compare current flow against 3-hour-ago readings for reliable direction.',
+  },
+  {
+    icon: Heart,
+    title: 'Watch your home waters',
+    description:
+      'Pin your go-to rivers and see them all in one view. No more bookmarking five USGS pages and checking them one by one before every trip.',
+    detail: 'Your favorites dashboard shows status, flow, temp, and trend at a glance.',
+  },
+  {
+    icon: Bell,
+    title: 'Get alerts when the river turns on',
+    description:
+      'Set thresholds for optimal flow, specific CFS levels, or temperature targets. StreamFlows watches the gauges so you don\u2019t have to.',
+    detail: 'Alerts trigger on real-time data checks every 15 minutes.',
+  },
+  {
+    icon: BookOpen,
+    title: 'Keep private notes on every river',
+    description:
+      'Record what worked, where you put in, which flies produced. Your notes stay private and attached to each river for next time.',
+    detail: 'Build a personal field guide that\u2019s always connected to live conditions.',
+  },
+];
+
+function FeaturesSection() {
+  return (
+    <section id="features" className="container mx-auto px-4 py-16 md:py-20">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+          Built for how guides actually work
+        </h2>
+        <p className="text-muted-foreground max-w-xl mx-auto">
+          Every feature exists because someone needed it on the water — not because it looked good on a feature list.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {features.map(({ icon: Icon, title, description, detail }, i) => (
+          <div
+            key={title}
+            className={`flex flex-col md:flex-row gap-6 md:gap-10 items-start bg-white border border-border rounded-2xl p-6 md:p-8 ${
+              i % 2 === 1 ? 'md:flex-row-reverse' : ''
+            }`}
+          >
+            {/* Icon block */}
+            <div className="shrink-0">
+              <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-primary/8">
+                <Icon className="h-7 w-7 text-primary" />
+              </div>
+            </div>
+
+            {/* Copy */}
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-foreground mb-2">{title}</h3>
+              <p className="text-muted-foreground leading-relaxed mb-3">{description}</p>
+              <p className="text-sm text-primary/80 font-medium">{detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Sections 6-8 — Placeholders (to be built)
    ──────────────────────────────────────────── */
 
 export default function Home() {
@@ -463,6 +545,7 @@ export default function Home() {
       <TrustBar />
       <LiveSnapshotSection />
       <HowItWorksSection />
+      <FeaturesSection />
     </div>
   );
 }
