@@ -112,14 +112,14 @@ function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight text-foreground mb-5">
-              Real-Time River Intelligence for{' '}
-              <span className="text-primary">New England</span>
+              Real-Time River Intelligence for the{' '}
+              <span className="text-primary">Northeast &amp; Midwest</span>
             </h1>
 
             <p className="text-lg text-muted-foreground max-w-lg mb-8 leading-relaxed">
               Stop guessing. StreamFlows translates raw USGS gauge data into clear,
-              fishable-or-not conditions for 50+ rivers across 6 states — so you know
-              exactly where to go before you load the truck.
+              fishable-or-not conditions for 1,500+ rivers across the northeastern US
+              and Midwest — so you know exactly where to go before you load the truck.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -214,7 +214,7 @@ function HeroSection() {
    ──────────────────────────────────────────── */
 
 const trustItems = [
-  { icon: Map, value: '50+', label: 'New England Rivers' },
+  { icon: Map, value: '1,500+', label: 'Rivers across NE & Midwest' },
   { icon: Shield, value: '6', label: 'States Covered' },
   { icon: Radio, value: '15 min', label: 'Update Frequency' },
   { icon: Activity, value: 'USGS', label: 'Powered by Live Data' },
@@ -311,7 +311,7 @@ function LiveSnapshotSection() {
           What&apos;s fishing right now
         </h2>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          A quick look at conditions across some of New England&apos;s top fly fishing rivers.
+          A quick look at conditions across some of the Northeast and Midwest&apos;s top fly fishing rivers.
           Updated every 15 minutes from live USGS gauges.
         </p>
       </div>
@@ -375,7 +375,7 @@ function LiveSnapshotSection() {
       <div className="text-center mt-8">
         <Link href="/rivers">
           <Button variant="outline" className="gap-2">
-            Browse All 50+ Rivers
+            Browse All 1,500+ Rivers
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -629,7 +629,7 @@ const withoutItems = [
 ];
 
 const withItems = [
-  'One dashboard for all 50+ rivers',
+  'One dashboard for all 1,500+ rivers',
   'Clear status labels: Optimal, Elevated, High, Low',
   'Know instantly which rivers are fishing well',
   'Trend arrows and 24-hour charts show direction',
@@ -707,7 +707,7 @@ function FinalCTASection() {
             Ready to know your rivers?
           </h2>
           <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-            Join guides and anglers across New England who check StreamFlows before
+            Join guides and anglers across the Northeast and Midwest who check StreamFlows before
             every trip. Browse live conditions now, or create a free account to
             save favorites and set alerts.
           </p>
