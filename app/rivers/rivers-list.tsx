@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { RiverCard } from '@/components/river-card';
 import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ export function RiversList({
   rosterRiverIds = [],
   isAuthenticated = false,
 }: RiversListProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<'roster' | 'discover'>(
     isAuthenticated ? 'roster' : 'discover'
   );
@@ -48,7 +50,41 @@ export function RiversList({
   const [statusFilter, setStatusFilter] = useState('all');
   const [speciesFilter, setSpeciesFilter] = useState('all');
 
-  const rosterSet = useMemo(() => new Set(rosterRiverIds), [rosterRiverIds]);
+  const [localRoster, setLocalRoster] = useState<Set<string>>(
+    () => new Set(rosterRiverIds)
+  );
+
+  const handleToggleRoster = async (riverId: string) => {
+    if (!isAuthenticated) {
+      window.location.href = '/login';
+      return;
+    }
+    const inRoster = localRoster.has(riverId);
+    setLocalRoster((prev) => {
+      const next = new Set(prev);
+      if (inRoster) next.delete(riverId);
+      else next.add(riverId);
+      return next;
+    });
+    const res = await fetch('/api/roster', {
+      method: inRoster ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ river_id: riverId }),
+    });
+    if (res.ok) {
+      router.refresh();
+    } else {
+      // revert on failure
+      setLocalRoster((prev) => {
+        const next = new Set(prev);
+        if (inRoster) next.add(riverId);
+        else next.delete(riverId);
+        return next;
+      });
+    }
+  };
+
+  const rosterSet = localRoster;
   const rosterRivers = useMemo(
     () => rivers.filter((r) => rosterSet.has(r.id)),
     [rivers, rosterSet]
@@ -254,7 +290,12 @@ export function RiversList({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredRivers.map((river) => (
-                <RiverCard key={river.id} river={river} showFavorite={false} />
+                <RiverCard
+                  key={river.id}
+                  river={{ ...river, is_favorite: rosterSet.has(river.id) }}
+                  showFavorite={isAuthenticated}
+                  onToggleFavorite={handleToggleRoster}
+                />
               ))}
             </div>
           )}

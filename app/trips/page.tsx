@@ -36,28 +36,32 @@ export default async function TripsPage() {
 
   if (!user) redirect('/login');
 
+  // All rivers for the picker — guides can pick any river for a trip
+  const { data: allRivers } = await supabase
+    .from('rivers')
+    .select('id, name, slug, optimal_flow_min, optimal_flow_max')
+    .order('name')
+    .limit(5000);
+
+  // Roster IDs (for status-dot priority when the picked river is on the roster)
   const { data: rosterRows } = await supabase
     .from('user_roster')
-    .select('river_id, sort_order, rivers(id, name, slug, optimal_flow_min, optimal_flow_max)')
+    .select('river_id')
     .eq('user_id', user.id)
-    .eq('archived', false)
-    .order('sort_order', { ascending: true });
+    .eq('archived', false);
 
-  const rosterRivers = (rosterRows ?? [])
-    .map((r: any) => r.rivers)
-    .filter((r: any): r is any => r !== null);
+  const rosterIdSet = new Set(
+    (rosterRows ?? []).map((r: any) => r.river_id as string)
+  );
 
-  const rosterIds = rosterRivers.map((r: any) => r.id);
-
-  // Latest condition per roster river (for status dot)
   const latestByRiver = new Map<string, any>();
-  if (rosterIds.length > 0) {
+  if (rosterIdSet.size > 0) {
     const seventyTwoHoursAgo = new Date();
     seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
     const { data: conditions } = await supabase
       .from('conditions')
       .select('river_id, flow, status, timestamp')
-      .in('river_id', rosterIds)
+      .in('river_id', Array.from(rosterIdSet))
       .gte('timestamp', seventyTwoHoursAgo.toISOString())
       .order('timestamp', { ascending: false });
 
@@ -66,10 +70,12 @@ export default async function TripsPage() {
     }
   }
 
-  const rosterOptions: RosterRiverOption[] = rosterRivers.map((r: any) => {
+  const rosterOptions: RosterRiverOption[] = (allRivers ?? []).map((r: any) => {
     const cond = latestByRiver.get(r.id);
-    const status = (cond?.status ??
-      calculateStatus(cond?.flow ?? null, r.optimal_flow_min, r.optimal_flow_max)) as RiverStatus;
+    const status = (cond
+      ? cond.status ??
+        calculateStatus(cond.flow ?? null, r.optimal_flow_min, r.optimal_flow_max)
+      : 'unknown') as RiverStatus;
     return { id: r.id, name: r.name, slug: r.slug, status };
   });
 
