@@ -3,7 +3,9 @@ import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
+import { Sidebar } from "@/components/sidebar";
 import { createClient } from "@/lib/supabase/server";
+import type { Condition, River, RiverWithCondition } from "@/lib/types/database";
 
 const openSans = Open_Sans({
   variable: "--font-sans",
@@ -17,6 +19,83 @@ export const metadata: Metadata = {
   description:
     "Real-time river conditions for 50+ New England rivers. StreamFlows translates live USGS gauge data into actionable fishing intelligence — optimal flows, trends, alerts, and more.",
 };
+
+async function getActiveAlertCount(userId: string, riverIds: string[]): Promise<number> {
+  if (riverIds.length === 0) return 0;
+  try {
+    const supabase = await createClient();
+    const { count } = await supabase
+      .from('user_alerts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .in('river_id', riverIds);
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function getRosterRivers(userId: string): Promise<{
+  rivers: RiverWithCondition[];
+  lastSyncedAt: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+
+    const { data: roster } = await supabase
+      .from('user_roster')
+      .select('river_id, sort_order, rivers(*)')
+      .eq('user_id', userId)
+      .eq('archived', false)
+      .order('sort_order', { ascending: true });
+
+    if (!roster || roster.length === 0) {
+      return { rivers: [], lastSyncedAt: null };
+    }
+
+    const rivers = roster
+      .map((r: any) => r.rivers as River | null)
+      .filter((r): r is River => r !== null);
+
+    const riverIds = rivers.map((r) => r.id);
+
+    const seventyTwoHoursAgo = new Date();
+    seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+
+    const { data: conditions } = await supabase
+      .from('conditions')
+      .select('*')
+      .in('river_id', riverIds)
+      .gte('timestamp', seventyTwoHoursAgo.toISOString())
+      .order('timestamp', { ascending: false });
+
+    const latestByRiver = new Map<string, Condition>();
+    if (conditions) {
+      for (const c of conditions as Condition[]) {
+        if (!latestByRiver.has(c.river_id)) {
+          latestByRiver.set(c.river_id, c);
+        }
+      }
+    }
+
+    let lastSyncedAt: string | null = null;
+    for (const c of latestByRiver.values()) {
+      if (!lastSyncedAt || c.timestamp > lastSyncedAt) {
+        lastSyncedAt = c.timestamp;
+      }
+    }
+
+    const withConditions: RiverWithCondition[] = rivers.map((r) => ({
+      ...r,
+      current_condition: latestByRiver.get(r.id),
+    }));
+
+    return { rivers: withConditions, lastSyncedAt };
+  } catch {
+    return { rivers: [], lastSyncedAt: null };
+  }
+}
 
 export default async function RootLayout({
   children,
@@ -32,14 +111,32 @@ export default async function RootLayout({
     // Supabase unavailable — render without auth state
   }
 
+  const rosterData = user ? await getRosterRivers(user.id) : null;
+  const activeAlertCount = user
+    ? await getActiveAlertCount(user.id, rosterData?.rivers.map((r) => r.id) ?? [])
+    : 0;
+
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        <Navigation user={user} />
-        <main className="min-h-screen bg-background">
-          {children}
-        </main>
-        <Footer />
+        {user ? (
+          <>
+            <Sidebar
+              rivers={rosterData?.rivers ?? []}
+              lastSyncedAt={rosterData?.lastSyncedAt ?? null}
+              activeAlertCount={activeAlertCount}
+            />
+            <main className="min-h-screen bg-background md:ml-64">
+              {children}
+            </main>
+          </>
+        ) : (
+          <>
+            <Navigation user={user} />
+            <main className="min-h-screen bg-background">{children}</main>
+            <Footer />
+          </>
+        )}
       </body>
     </html>
   );

@@ -33,12 +33,20 @@ async function getRivers() {
   const { data: { user } } = await supabase.auth.getUser();
 
   let favorites: any[] = [];
+  let rosterRiverIds: string[] = [];
   if (user) {
     const { data: favData } = await supabase
       .from('user_favorites')
       .select('river_id')
       .eq('user_id', user.id);
     favorites = favData || [];
+
+    const { data: rosterData } = await supabase
+      .from('user_roster')
+      .select('river_id')
+      .eq('user_id', user.id)
+      .eq('archived', false);
+    rosterRiverIds = (rosterData || []).map((r: any) => r.river_id);
   }
 
   // Fetch all public check-ins from the last 7 days in one query
@@ -89,7 +97,7 @@ async function getRivers() {
     return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };
   });
 
-  return riversWithConditions;
+  return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user };
 }
 
 async function getStats(rivers: RiverWithCondition[]) {
@@ -106,7 +114,7 @@ async function getStats(rivers: RiverWithCondition[]) {
 const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'unknown'];
 
 export default async function RiversPage() {
-  const rivers = await getRivers();
+  const { rivers, rosterRiverIds, isAuthenticated } = await getRivers();
   const stats = await getStats(rivers);
 
   return (
@@ -141,7 +149,11 @@ export default async function RiversPage() {
         })}
       </div>
 
-      <RiversList rivers={rivers} />
+      <RiversList
+        rivers={rivers}
+        rosterRiverIds={rosterRiverIds}
+        isAuthenticated={isAuthenticated}
+      />
     </div>
   );
 }

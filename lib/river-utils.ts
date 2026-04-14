@@ -5,7 +5,8 @@ export function calculateStatus(
   optimalMin: number | null,
   optimalMax: number | null
 ): RiverStatus {
-  if (flow === null || flow <= -999000) return 'ice_affected';
+  if (flow !== null && flow <= -999000) return 'no_data';
+  if (flow === null) return 'unknown';
   if (optimalMin === null || optimalMax === null) return 'unknown';
   if (flow < optimalMin)                              return 'low';
   if (flow >= optimalMin && flow <= optimalMax)        return 'optimal';
@@ -28,6 +29,7 @@ export function getStatusColor(status: RiverStatus): string {
     case 'high':         return 'bg-red-100 text-red-800 border-red-200';
     case 'low':          return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'ice_affected': return 'bg-slate-100 text-slate-600 border-slate-200';
+    case 'no_data':      return 'bg-zinc-100 text-zinc-500 border-zinc-200';
     default:             return 'bg-zinc-100 text-zinc-600 border-zinc-200';
   }
 }
@@ -40,6 +42,7 @@ export function getStatusColorSolid(status: RiverStatus): string {
     case 'high':         return 'bg-red-500 text-white border-transparent';
     case 'low':          return 'bg-blue-500 text-white border-transparent';
     case 'ice_affected': return 'bg-slate-500 text-white border-transparent';
+    case 'no_data':      return 'bg-zinc-400 text-white border-transparent';
     default:             return 'bg-zinc-500 text-white border-transparent';
   }
 }
@@ -52,6 +55,7 @@ export function getStatusBorderColor(status: RiverStatus): string {
     case 'high':         return 'border-l-red-500';
     case 'low':          return 'border-l-blue-500';
     case 'ice_affected': return 'border-l-slate-400';
+    case 'no_data':      return 'border-l-zinc-300';
     default:             return 'border-l-zinc-400';
   }
 }
@@ -64,6 +68,7 @@ export function getStatusDotColor(status: RiverStatus): string {
     case 'high':         return 'bg-red-500';
     case 'low':          return 'bg-blue-500';
     case 'ice_affected': return 'bg-slate-400';
+    case 'no_data':      return 'bg-zinc-300';
     default:             return 'bg-zinc-400';
   }
 }
@@ -75,7 +80,8 @@ export function getStatusLabel(status: RiverStatus): string {
     case 'high':         return 'High';
     case 'low':          return 'Low';
     case 'ice_affected': return 'Gauge Not Responding';
-    default:             return 'No Data';
+    case 'no_data':      return 'No Data';
+    default:             return 'Unknown';
   }
 }
 
@@ -89,13 +95,14 @@ export function getTrendIcon(trend: FlowTrend): string {
   }
 }
 
-export function formatFlow(flow: number | null): string {
-  if (!flow) return 'N/A';
+export function formatFlow(flow: number | null | undefined): string {
+  if (flow === null || flow === undefined) return 'N/A';
+  if (flow <= -999000) return 'N/A';
   return `${flow.toLocaleString()} CFS`;
 }
 
-export function formatTemperature(temp: number | null): string {
-  if (!temp) return 'N/A';
+export function formatTemperature(temp: number | null | undefined): string {
+  if (temp === null || temp === undefined) return 'N/A';
   return `${temp.toFixed(1)}°F`;
 }
 

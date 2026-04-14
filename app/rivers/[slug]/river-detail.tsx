@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,8 +26,10 @@ import {
   formatFlow,
   formatTemperature,
 } from '@/lib/river-utils';
+import { calculateFlowEta } from '@/lib/flow-eta';
 import {
   Heart,
+  CalendarPlus,
   ArrowLeft,
   MapPin,
   Clock,
@@ -42,6 +45,31 @@ import {
   Gauge,
 } from 'lucide-react';
 import { format } from 'date-fns';
+
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function formatMonthDay(month: number | null, day: number | null): string | null {
+  if (month == null || day == null) return null;
+  return `${MONTH_SHORT[month - 1]} ${day}`;
+}
+
+const DAYS_BEFORE_MONTH = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+function doy(m: number, d: number) {
+  return DAYS_BEFORE_MONTH[m - 1] + d;
+}
+function isHatchActiveToday(h: {
+  start_month: number; start_day: number; end_month: number; end_day: number;
+}): boolean {
+  const now = new Date();
+  const t = doy(now.getMonth() + 1, now.getDate());
+  const s = doy(h.start_month, h.start_day);
+  const e = doy(h.end_month, h.end_day);
+  if (s > e) return t >= s || t <= e;
+  return t >= s && t <= e;
+}
 
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'rising')
@@ -63,8 +91,11 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     current_condition, conditions, species, is_favorite, user_note, trend, user,
     checkins: initialCheckins = [],
     eta, weather,
+    historical_last_year, historical_two_years_ago,
+    hatches = [],
   } = riverData;
 
+  const router = useRouter();
   const [isFavorite, setIsFavorite]       = useState(is_favorite);
   const [note, setNote]                   = useState(user_note?.note || '');
   const [isSavingNote, setIsSavingNote]   = useState(false);
@@ -73,6 +104,28 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   const [checkins, setCheckins]           = useState<any[]>(initialCheckins);
 
   const status = current_condition?.status || 'low';
+  const etaLabel = calculateFlowEta(conditions ?? [], optimal_flow_min, optimal_flow_max).label;
+
+  const handleDeleteHatch = async (hatchId: string) => {
+    if (!confirm('Delete this hatch?')) return;
+    const res = await fetch('/api/hatches', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: hatchId }),
+    });
+    if (res.ok) router.refresh();
+  };
+
+  const handleEditHatch = async (hatch: any) => {
+    const nextNotes = prompt('Notes', hatch.notes ?? '');
+    if (nextNotes === null) return;
+    const res = await fetch('/api/hatches', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: hatch.id, notes: nextNotes || null }),
+    });
+    if (res.ok) router.refresh();
+  };
 
   const chartData = conditions.map((c: any) => ({
     time: format(new Date(c.timestamp), 'HH:mm'),
@@ -104,7 +157,12 @@ export function RiverDetail({ riverData }: { riverData: any }) {
       const res = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ river_id: id, note }),
+        body: JSON.stringify({
+          river_id: id,
+          note,
+          flow_at_save: current_condition?.flow ?? null,
+          temp_at_save: current_condition?.temperature ?? null,
+        }),
       });
       if (res.ok) {
         showToast({ type: 'success', message: 'Note saved successfully.' });
@@ -168,17 +226,33 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     <span>USGS {usgs_station_id}</span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleToggleFavorite}
-                  aria-label={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
-                  className="shrink-0"
-                >
-                  <Heart className={`h-5 w-5 transition-colors ${
-                    isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground hover:text-primary'
-                  }`} />
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {user && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() =>
+                        router.push(
+                          `/trips?river_id=${encodeURIComponent(id)}&river_name=${encodeURIComponent(name)}`
+                        )
+                      }
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Plan a Trip
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleToggleFavorite}
+                    aria-label={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+                  >
+                    <Heart className={`h-5 w-5 transition-colors ${
+                      isFavorite ? 'fill-primary text-primary' : 'text-muted-foreground hover:text-primary'
+                    }`} />
+                  </Button>
+                </div>
               </div>
 
               {description && (
@@ -213,6 +287,12 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               <CardTitle className="text-base font-semibold">Current Conditions</CardTitle>
             </CardHeader>
             <CardContent className="px-5 pb-5">
+              {etaLabel && (
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                  <Clock className="h-4 w-4" />
+                  {etaLabel}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 {[
                   {
@@ -257,6 +337,134 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               )}
             </CardContent>
           </Card>
+
+          {/* Historical flows */}
+          {(historical_last_year || historical_two_years_ago) && (
+            <Card>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">Historical Flows</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {historical_last_year && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">This date last year</span>
+                    <span className="font-semibold">
+                      {historical_last_year.flow !== null
+                        ? formatFlow(historical_last_year.flow)
+                        : 'No data'}
+                    </span>
+                  </div>
+                )}
+                {historical_two_years_ago && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Two years ago</span>
+                    <span className="font-semibold">
+                      {historical_two_years_ago.flow !== null
+                        ? formatFlow(historical_two_years_ago.flow)
+                        : 'No data'}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Hatches & Species */}
+          {(species.length > 0 || hatches.length > 0) && (
+            <Card>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">Hatches & Species</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-5">
+                {species.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Species
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {species.map((s: any) => (
+                        <Badge key={s.id} variant="secondary" className="text-xs">
+                          <Fish className="h-3 w-3 mr-1" />
+                          {s.species.charAt(0).toUpperCase() + s.species.slice(1)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {hatches.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Hatch calendar
+                    </p>
+                    <ul className="space-y-2">
+                      {hatches.map((h: any) => {
+                        const active = isHatchActiveToday(h);
+                        const range = `${formatMonthDay(h.start_month, h.start_day)} – ${formatMonthDay(h.end_month, h.end_day)}`;
+                        const peakStart = formatMonthDay(h.peak_start_month, h.peak_start_day);
+                        const peakEnd = formatMonthDay(h.peak_end_month, h.peak_end_day);
+                        const peak = peakStart && peakEnd ? `${peakStart} – ${peakEnd}` : null;
+                        const isUserHatch = h.user_id != null;
+                        return (
+                          <li
+                            key={h.id}
+                            className={`rounded-lg border border-border bg-card px-3 py-2 ${active ? 'border-l-4 border-l-emerald-500' : ''}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-sm">{h.insect}</span>
+                                  <span className="text-xs text-muted-foreground">{range}</span>
+                                  {active && (
+                                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] px-1.5 py-0">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </div>
+                                {peak && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Peak: {peak}
+                                  </p>
+                                )}
+                                {h.temp_trigger != null && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Starts ~{h.temp_trigger}°F
+                                  </p>
+                                )}
+                                {h.notes && (
+                                  <p className="text-xs text-foreground/80 mt-1">{h.notes}</p>
+                                )}
+                              </div>
+                              {isUserHatch && user && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleEditHatch(h)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                    onClick={() => handleDeleteHatch(h.id)}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 24-hour chart */}
           <Card>
@@ -323,6 +531,19 @@ export function RiverDetail({ riverData }: { riverData: any }) {
             <Card>
               <CardHeader className="pb-2 px-5 pt-5">
                 <CardTitle className="text-base font-semibold">My Notes</CardTitle>
+                {user_note && (user_note.flow_at_save != null || user_note.temp_at_save != null) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {[
+                      user_note.updated_at
+                        ? format(new Date(user_note.updated_at), 'MMM d')
+                        : null,
+                      user_note.flow_at_save != null ? formatFlow(user_note.flow_at_save) : null,
+                      user_note.temp_at_save != null ? formatTemperature(user_note.temp_at_save) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="px-5 pb-5">
                 <Textarea

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fetchWeatherForecast } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
+import { fetchHistoricalFlow } from '@/lib/usgs-historical';
 import { RiverDetail } from './river-detail';
 
 export const dynamic = 'force-dynamic';
@@ -108,6 +109,28 @@ async function getRiver(slug: string) {
     ? await fetchWeatherForecast(river.latitude, river.longitude)
     : null;
 
+  // Hatch events for this river (seed + user's own via RLS)
+  const { data: hatches } = await supabase
+    .from('hatch_events')
+    .select('*')
+    .eq('river_id', river.id)
+    .order('start_month', { ascending: true })
+    .order('start_day', { ascending: true });
+
+  // Historical flows — same month/day, 1 and 2 years ago
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const lastYearDate = `${now.getFullYear() - 1}-${mm}-${dd}`;
+  const twoYearsAgoDate = `${now.getFullYear() - 2}-${mm}-${dd}`;
+
+  const [historical_last_year, historical_two_years_ago] = river.usgs_station_id
+    ? await Promise.all([
+        fetchHistoricalFlow(river.usgs_station_id, lastYearDate),
+        fetchHistoricalFlow(river.usgs_station_id, twoYearsAgoDate),
+      ])
+    : [null, null];
+
   return {
     ...river,
     current_condition: currentCondition,
@@ -120,6 +143,9 @@ async function getRiver(slug: string) {
     checkins,
     eta,
     weather,
+    historical_last_year,
+    historical_two_years_ago,
+    hatches: hatches ?? [],
   };
 }
 

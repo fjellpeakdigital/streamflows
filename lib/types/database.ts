@@ -1,4 +1,4 @@
-export type RiverStatus = 'optimal' | 'elevated' | 'high' | 'low' | 'ice_affected' | 'unknown';
+export type RiverStatus = 'optimal' | 'elevated' | 'high' | 'low' | 'ice_affected' | 'no_data' | 'unknown';
 export type Species = 'trout' | 'salmon' | 'bass' | 'pike' | 'shad' | 'other';
 export type AlertType = 'optimal_flow' | 'flow_threshold' | 'temperature';
 export type FlowTrend = 'rising' | 'falling' | 'stable' | 'unknown';
@@ -72,8 +72,25 @@ export interface UserNote {
   user_id: string;
   river_id: string;
   note: string;
+  flow_at_save: number | null;
+  temp_at_save: number | null;
   updated_at: string;
   created_at: string;
+}
+
+export interface UserRoster {
+  id: string;
+  user_id: string;
+  river_id: string;
+  species: string[];
+  optimal_flow_min_override: number | null;
+  optimal_flow_max_override: number | null;
+  access_notes: string | null;
+  designation: 'primary' | 'backup' | null;
+  sort_order: number;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UserAlert {
@@ -98,6 +115,7 @@ export interface RiverWithCondition extends River {
   species?: RiverSpecies[];
   is_favorite?: boolean;
   user_note?: UserNote;
+  user_roster?: UserRoster;
   trend?: FlowTrend;
   /** Aggregated angler rating from public check-ins in the last 7 days */
   angler_rating?: {
@@ -128,6 +146,11 @@ export interface Database {
         Row: UserFavorite;
         Insert: Omit<UserFavorite, 'id' | 'created_at'>;
         Update: Partial<Omit<UserFavorite, 'id' | 'created_at'>>;
+      };
+      user_roster: {
+        Row: UserRoster;
+        Insert: Omit<UserRoster, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<UserRoster, 'id' | 'created_at' | 'updated_at'>>;
       };
       user_notes: {
         Row: UserNote;

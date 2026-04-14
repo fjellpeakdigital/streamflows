@@ -12,6 +12,7 @@ import {
   formatFlow,
   formatTemperature,
 } from '@/lib/river-utils';
+import { calculateFlowEta } from '@/lib/flow-eta';
 import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves, Clock, Fish } from 'lucide-react';
 
 const ANGLER_BADGE: Record<string, string> = {
@@ -42,6 +43,10 @@ export function RiverCard({
   const status = condition?.status || 'low';
   const trend = river.trend || 'stable';
   const anglerRating = river.angler_rating;
+  const conditionsHistory = (river as any).conditions as any[] | undefined;
+  const etaLabel = conditionsHistory
+    ? calculateFlowEta(conditionsHistory, river.optimal_flow_min, river.optimal_flow_max).label
+    : '';
 
   return (
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
@@ -103,6 +108,13 @@ export function RiverCard({
               </span>
             )}
           </div>
+
+          {etaLabel && (
+            <div className="flex items-center gap-1 text-xs font-medium text-primary">
+              <Clock className="h-3 w-3" />
+              {etaLabel}
+            </div>
+          )}
 
           {/* Flow + Temp stats */}
           <div className="grid grid-cols-2 gap-2">

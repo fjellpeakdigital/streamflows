@@ -1,41 +1,62 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-function parseNumeric(value: unknown): number | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+export const dynamic = 'force-dynamic';
+
+async function getUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return { supabase, user };
+}
+
+export async function GET() {
+  try {
+    const { supabase, user } = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
+      .from('user_roster')
+      .select('*, rivers(name, slug)')
+      .eq('user_id', user.id)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(data);
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const { supabase, user } = await getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { river_id, note } = body ?? {};
-    const flow_at_save = parseNumeric(body?.flow_at_save);
-    const temp_at_save = parseNumeric(body?.temp_at_save);
+    const { river_id, designation, species, sort_order } = body ?? {};
 
-    const row: Record<string, unknown> = {
-      user_id: user.id,
-      river_id,
-      note,
-      updated_at: new Date().toISOString(),
-    };
-    if (flow_at_save !== undefined) row.flow_at_save = flow_at_save;
-    if (temp_at_save !== undefined) row.temp_at_save = temp_at_save;
+    if (!river_id) {
+      return NextResponse.json({ error: 'river_id is required' }, { status: 400 });
+    }
 
     const { data, error } = await supabase
-      .from('user_notes')
-      .upsert(row, { onConflict: 'user_id,river_id' })
+      .from('user_roster')
+      .insert({
+        user_id: user.id,
+        river_id,
+        designation: designation ?? null,
+        species: species ?? [],
+        sort_order: sort_order ?? 0,
+      })
       .select()
       .single();
 
@@ -51,37 +72,39 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const { supabase, user } = await getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { river_id } = body ?? {};
+    const { river_id, ...rest } = body ?? {};
 
     if (!river_id) {
       return NextResponse.json({ error: 'river_id is required' }, { status: 400 });
     }
 
+    const allowed = [
+      'designation',
+      'species',
+      'optimal_flow_min_override',
+      'optimal_flow_max_override',
+      'access_notes',
+      'sort_order',
+      'archived',
+    ] as const;
+
     const updates: Record<string, unknown> = {};
-    if ('note' in body) updates.note = body.note;
-    const flow_at_save = parseNumeric(body?.flow_at_save);
-    const temp_at_save = parseNumeric(body?.temp_at_save);
-    if (flow_at_save !== undefined) updates.flow_at_save = flow_at_save;
-    if (temp_at_save !== undefined) updates.temp_at_save = temp_at_save;
+    for (const key of allowed) {
+      if (key in rest) updates[key] = rest[key];
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'no updatable fields provided' }, { status: 400 });
     }
 
-    updates.updated_at = new Date().toISOString();
-
     const { data, error } = await supabase
-      .from('user_notes')
+      .from('user_roster')
       .update(updates)
       .eq('user_id', user.id)
       .eq('river_id', river_id)
@@ -100,19 +123,19 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const { supabase, user } = await getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { river_id } = await request.json();
 
+    if (!river_id) {
+      return NextResponse.json({ error: 'river_id is required' }, { status: 400 });
+    }
+
     const { error } = await supabase
-      .from('user_notes')
+      .from('user_roster')
       .delete()
       .eq('user_id', user.id)
       .eq('river_id', river_id);

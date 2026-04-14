@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/fetch-daily",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/prune-conditions",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/trip-alerts",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
