@@ -5,7 +5,31 @@ import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { Sidebar } from "@/components/sidebar";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import type { Condition, River, RiverWithCondition } from "@/lib/types/database";
+
+async function getCurrentPath(): Promise<string | null> {
+  try {
+    const h = await headers();
+    const candidates = [
+      h.get('x-pathname'),
+      h.get('x-invoke-path'),
+      h.get('x-matched-path'),
+    ];
+    for (const c of candidates) {
+      if (c && c.length > 0) return c;
+    }
+    const nextUrl = h.get('next-url');
+    if (nextUrl) {
+      try { return new URL(nextUrl, 'http://x').pathname; } catch {}
+    }
+    const referer = h.get('referer');
+    if (referer) {
+      try { return new URL(referer).pathname; } catch {}
+    }
+  } catch {}
+  return null;
+}
 
 const openSans = Open_Sans({
   variable: "--font-sans",
@@ -130,9 +154,12 @@ export default async function RootLayout({
   }
 
   const isAuthenticated = user !== null;
+  const currentPath = await getCurrentPath();
+  const isLandingPage = currentPath === '/' || currentPath === '';
+  const showSidebar = isAuthenticated && !isLandingPage;
 
-  const rosterData = isAuthenticated ? await getRosterRivers(user!.id) : null;
-  const [activeAlertCount, upcomingTripCount] = isAuthenticated
+  const rosterData = showSidebar ? await getRosterRivers(user!.id) : null;
+  const [activeAlertCount, upcomingTripCount] = showSidebar
     ? await Promise.all([
         getActiveAlertCount(user!.id, rosterData?.rivers.map((r) => r.id) ?? []),
         getUpcomingTripCount(user!.id),
@@ -142,7 +169,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        {isAuthenticated ? (
+        {showSidebar ? (
           <>
             <Sidebar
               rivers={rosterData?.rivers ?? []}
@@ -156,7 +183,7 @@ export default async function RootLayout({
           </>
         ) : (
           <>
-            <Navigation user={null} />
+            <Navigation user={user} />
             <main className="min-h-screen bg-background">{children}</main>
             <Footer />
           </>
