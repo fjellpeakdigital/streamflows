@@ -208,7 +208,29 @@ function truncate(text: string, max = 60): string {
   return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
 }
 
-function ConditionsCard({ river, note }: { river: DashboardRiver; note?: string }) {
+function HatchChip({ river }: { river: DashboardRiver }) {
+  const active = river.active_hatches ?? [];
+  const soon = river.upcoming_hatches ?? [];
+  if (active.length > 0) {
+    const extra = active.length - 1;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium px-2 py-0.5">
+        🪰 {active[0]}
+        {extra > 0 ? ` +${extra}` : ''}
+      </span>
+    );
+  }
+  if (soon.length > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-secondary border border-border text-muted-foreground text-xs font-medium px-2 py-0.5">
+        Soon: {soon[0]}
+      </span>
+    );
+  }
+  return null;
+}
+
+function ConditionsRow({ river, note }: { river: DashboardRiver; note?: string }) {
   const status = (river.current_condition?.status ?? 'unknown') as RiverStatus;
   const flow = river.current_condition?.flow ?? null;
   const temp = river.current_condition?.temperature ?? null;
@@ -216,72 +238,107 @@ function ConditionsCard({ river, note }: { river: DashboardRiver; note?: string 
   const trend = trendLabel(river.trend);
 
   return (
-    <Link
-      href={`/rivers/${river.slug}`}
-      className={cn(
-        'group flex flex-col bg-white border border-border rounded-xl p-4 border-l-4 transition-colors hover:border-foreground/20 md:w-72 md:shrink-0',
-        getStatusBorderColor(status)
-      )}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0">
-          <h3 className="font-semibold text-sm truncate">{river.name}</h3>
-          <p className="text-xs text-muted-foreground truncate">{river.region}</p>
-        </div>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-          {getStatusLabel(status)}
-        </span>
-      </div>
-
-      <div className="flex items-baseline gap-2 mb-1">
-        <span className="text-xl font-bold leading-none">{formatFlow(flow)}</span>
-        <span className={cn('text-sm font-semibold whitespace-nowrap', trend.className)}>
-          {trend.arrow} {trend.text}
-        </span>
-      </div>
-
-      {optimalRange && (
-        <p className="text-xs text-muted-foreground mb-2">Optimal {optimalRange}</p>
-      )}
-
-      {note && (
-        <div className="mb-2 flex items-start gap-1.5 bg-secondary/60 border border-border rounded-md px-2 py-1.5 text-xs text-muted-foreground">
-          <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
-          <span className="leading-snug">{truncate(note)}</span>
-        </div>
-      )}
-
-      {(() => {
-        const active = river.active_hatches ?? [];
-        const soon = river.upcoming_hatches ?? [];
-        if (active.length > 0) {
-          const extra = active.length - 1;
-          return (
-            <span className="mb-2 inline-flex items-center gap-1 self-start rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium px-2 py-0.5">
-              🪰 {active[0]}
-              {extra > 0 ? ` +${extra}` : ''}
+    <div className="space-y-1.5">
+      <Link
+        href={`/rivers/${river.slug}`}
+        className={cn(
+          'group block bg-card border border-border rounded-xl p-3 border-l-4 transition-colors hover:border-foreground/20',
+          getStatusBorderColor(status)
+        )}
+      >
+        {/* Mobile stacked layout */}
+        <div className="md:hidden space-y-2">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm truncate">{river.name}</h3>
+            <p className="text-xs text-muted-foreground truncate">{river.region}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Flow</div>
+              <div className="font-bold">{formatFlow(flow)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Temp</div>
+              <div className="font-semibold">
+                {temp !== null ? formatTemperature(temp) : 'N/A'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Trend</div>
+              <div className={cn('font-semibold', trend.className)}>
+                {trend.arrow} {trend.text}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {getStatusLabel(status)}
             </span>
-          );
-        }
-        if (soon.length > 0) {
-          return (
-            <span className="mb-2 inline-flex items-center gap-1 self-start rounded-full bg-secondary border border-border text-muted-foreground text-xs font-medium px-2 py-0.5">
-              Soon: {soon[0]}
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+              View <ArrowRight className="h-3 w-3" />
             </span>
-          );
-        }
-        return null;
-      })()}
+          </div>
+        </div>
 
-      <div className="mt-auto flex items-center justify-between pt-2 border-t border-border/60">
-        <span className="text-xs text-muted-foreground">
-          {temp !== null ? formatTemperature(temp) : 'Temp N/A'}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary group-hover:gap-1.5 transition-all">
-          Details <ArrowRight className="h-3 w-3" />
-        </span>
-      </div>
-    </Link>
+        {/* md+ grid layout — columns align across cards */}
+        <div className="hidden md:grid items-center gap-4 md:grid-cols-[minmax(0,1fr)_6rem_8rem_4.5rem_7rem_6rem_5rem]">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm truncate">{river.name}</h3>
+            <p className="text-xs text-muted-foreground truncate">{river.region}</p>
+          </div>
+
+          <div className="text-right tabular-nums">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Flow</div>
+            <div className="font-bold text-base leading-tight">{formatFlow(flow)}</div>
+          </div>
+
+          <div className="text-right tabular-nums">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Optimal</div>
+            <div className="text-xs text-muted-foreground leading-tight">
+              {optimalRange ?? '—'}
+            </div>
+          </div>
+
+          <div className="text-right tabular-nums">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Temp</div>
+            <div className="text-sm font-semibold leading-tight">
+              {temp !== null ? formatTemperature(temp) : '—'}
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Trend</div>
+            <div className={cn('text-sm font-semibold leading-tight whitespace-nowrap', trend.className)}>
+              {trend.arrow} {trend.text}
+            </div>
+          </div>
+
+          <div>
+            <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+              {getStatusLabel(status)}
+            </span>
+          </div>
+
+          <div className="flex justify-end">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary group-hover:gap-1.5 transition-all whitespace-nowrap">
+              View <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      {(note || (river.active_hatches?.length ?? 0) > 0 || (river.upcoming_hatches?.length ?? 0) > 0) && (
+        <div className="flex flex-wrap items-center gap-2 pl-3">
+          <HatchChip river={river} />
+          {note && (
+            <span className="inline-flex items-start gap-1.5 bg-secondary/60 border border-border rounded-md px-2 py-1 text-xs text-muted-foreground">
+              <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
+              <span className="leading-snug">{truncate(note)}</span>
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -352,11 +409,13 @@ export function GuideDashboard({
 
       {nextTrip && <NextTripBar trip={nextTrip} backup={backup} />}
 
-      <div className="flex flex-col gap-3 md:flex-row md:overflow-x-auto md:pb-2 md:-mx-4 md:px-4 md:snap-x">
+      <div className="space-y-2">
         {sorted.map((river) => (
-          <div key={river.id} className="md:snap-start">
-            <ConditionsCard river={river} note={notesByRiver[river.id]} />
-          </div>
+          <ConditionsRow
+            key={river.id}
+            river={river}
+            note={notesByRiver[river.id]}
+          />
         ))}
       </div>
     </div>
