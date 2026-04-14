@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
+  ArrowRight,
   Bell,
   BookOpenText,
   CalendarDays,
@@ -11,6 +13,7 @@ import {
   LineChart,
   LogOut,
   Plus,
+  Search,
   Settings,
   StickyNote,
 } from 'lucide-react';
@@ -49,6 +52,13 @@ export function Sidebar({
   userEmail = null,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [search, setSearch] = useState('');
+
+  const filteredRivers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rivers;
+    return rivers.filter((r) => r.name.toLowerCase().includes(q));
+  }, [rivers, search]);
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(`${path}/`);
@@ -76,8 +86,24 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto pb-4">
         {/* My Roster */}
         <SectionHeader>My Roster</SectionHeader>
+        <div className="px-3 pb-1">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onBlur={(e) => {
+                if (!e.target.value) setSearch('');
+              }}
+              placeholder="Search roster…"
+              aria-label="Search roster"
+              className="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+          </div>
+        </div>
         <ul className="space-y-0.5 px-3" role="list">
-          {rivers.map((river) => {
+          {filteredRivers.map((river) => {
             const status = calculateStatus(
               river.current_condition?.flow ?? null,
               river.optimal_flow_min,
@@ -111,7 +137,27 @@ export function Sidebar({
               No rivers on your roster yet.
             </li>
           )}
+          {rivers.length > 0 && filteredRivers.length === 0 && (
+            <li>
+              <Link
+                href={`/rivers?q=${encodeURIComponent(search.trim())}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                No matches — Browse all rivers
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </li>
+          )}
         </ul>
+        <div className="px-3 mt-1">
+          <Link
+            href="/rivers"
+            className="inline-flex items-center gap-1 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Browse all rivers
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
 
         {/* Plan a Trip */}
         <SectionHeader>Plan a Trip</SectionHeader>
