@@ -8,28 +8,6 @@ import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import type { Condition, River, RiverWithCondition } from "@/lib/types/database";
 
-async function getCurrentPath(): Promise<string | null> {
-  try {
-    const h = await headers();
-    const candidates = [
-      h.get('x-pathname'),
-      h.get('x-invoke-path'),
-      h.get('x-matched-path'),
-    ];
-    for (const c of candidates) {
-      if (c && c.length > 0) return c;
-    }
-    const nextUrl = h.get('next-url');
-    if (nextUrl) {
-      try { return new URL(nextUrl, 'http://x').pathname; } catch {}
-    }
-    const referer = h.get('referer');
-    if (referer) {
-      try { return new URL(referer).pathname; } catch {}
-    }
-  } catch {}
-  return null;
-}
 
 const openSans = Open_Sans({
   variable: "--font-sans",
@@ -154,9 +132,8 @@ export default async function RootLayout({
   }
 
   const isAuthenticated = user !== null;
-  const currentPath = await getCurrentPath();
-  const isLandingPage = currentPath === '/' || currentPath === '';
-  const showSidebar = isAuthenticated && !isLandingPage;
+  const pathname = (await headers()).get('x-pathname') ?? '/';
+  const showSidebar = isAuthenticated && pathname !== '/';
 
   const rosterData = showSidebar ? await getRosterRivers(user!.id) : null;
   const [activeAlertCount, upcomingTripCount] = showSidebar
