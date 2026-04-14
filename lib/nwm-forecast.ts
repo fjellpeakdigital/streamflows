@@ -74,6 +74,16 @@ export async function resolveNWMReachId(
   usgsStationId: string
 ): Promise<string | null> {
   const body = await fetchJson(GAUGE_URL(usgsStationId));
+  // TEMP DEBUG: log the raw gauge response for known station 01184100 so we
+  // can see the actual response shape in Vercel logs. Remove once fields are
+  // confirmed.
+  if (usgsStationId === '01184100') {
+    console.log(
+      '[nwm-debug] gauge response for 01184100:',
+      JSON.stringify(body, null, 2)
+    );
+    console.log('[nwm-debug] top-level keys:', body && typeof body === 'object' ? Object.keys(body) : body);
+  }
   return extractReachId(body);
 }
 
