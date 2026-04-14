@@ -19,6 +19,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  AreaChart,
+  Area,
+  ReferenceArea,
 } from 'recharts';
 import {
   getStatusColor,
@@ -71,6 +74,46 @@ function isHatchActiveToday(h: {
   return t >= s && t <= e;
 }
 
+function summarizeForecast(
+  points: Array<{ timestamp: string; flow: number }>,
+  optimalMin: number | null,
+  optimalMax: number | null
+): string {
+  if (!points.length) return 'Forecast data unavailable.';
+
+  const withStatus = points.map((p) => {
+    const d = new Date(p.timestamp);
+    const flow = p.flow;
+    let status: 'low' | 'optimal' | 'elevated' | 'high' | 'unknown' = 'unknown';
+    if (optimalMin != null && optimalMax != null) {
+      if (flow < optimalMin) status = 'low';
+      else if (flow <= optimalMax) status = 'optimal';
+      else if (flow <= optimalMax * 1.5) status = 'elevated';
+      else status = 'high';
+    }
+    return { date: d, status };
+  });
+
+  const optimalDays = Array.from(
+    new Set(
+      withStatus
+        .filter((p) => p.status === 'optimal')
+        .map((p) => format(p.date, 'MMM d'))
+    )
+  );
+
+  if (optimalDays.length > 0) {
+    if (optimalDays.length === 1) return `Forecast shows optimal conditions ${optimalDays[0]}.`;
+    return `Forecast shows optimal conditions ${optimalDays[0]}–${optimalDays[optimalDays.length - 1]}.`;
+  }
+
+  const statuses = new Set(withStatus.map((p) => p.status));
+  if (statuses.has('high')) return 'Expected to run high through the forecast window.';
+  if (statuses.has('elevated')) return 'Expected to remain elevated through the forecast window.';
+  if (statuses.has('low')) return 'Expected to stay low through the forecast window.';
+  return 'Forecast trend unclear — check the chart for details.';
+}
+
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'rising')
     return <TrendingUp  className="h-5 w-5 text-amber-600" aria-label="Rising" />;
@@ -93,6 +136,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     eta, weather,
     historical_last_year, historical_two_years_ago,
     hatches = [],
+    nwmForecast = null,
   } = riverData;
 
   const router = useRouter();
@@ -287,7 +331,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               <CardTitle className="text-base font-semibold">Current Conditions</CardTitle>
             </CardHeader>
             <CardContent className="px-5 pb-5">
-              {etaLabel && (
+              {etaLabel && !nwmForecast && (
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
                   <Clock className="h-4 w-4" />
                   {etaLabel}
@@ -365,6 +409,78 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     </span>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 5-day NWM forecast */}
+          {nwmForecast && nwmForecast.mediumRange.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">5-Day Forecast</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  NOAA National Water Model · reach {nwmForecast.reachId}
+                </p>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-3">
+                <p className="text-sm font-medium">
+                  {summarizeForecast(
+                    nwmForecast.mediumRange,
+                    optimal_flow_min,
+                    optimal_flow_max
+                  )}
+                </p>
+                <div className="w-full h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={nwmForecast.mediumRange.map((p) => ({
+                        label: format(new Date(p.timestamp), 'MMM d'),
+                        time: new Date(p.timestamp).getTime(),
+                        flow: p.flow,
+                      }))}
+                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis
+                        dataKey="label"
+                        stroke="#6b7280"
+                        fontSize={11}
+                        tickLine={false}
+                        interval="preserveStartEnd"
+                        minTickGap={24}
+                      />
+                      <YAxis
+                        stroke="#6b7280"
+                        fontSize={11}
+                        tickLine={false}
+                        width={48}
+                        label={{ value: 'CFS', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: '#6b7280' }}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [`${Math.round(value).toLocaleString()} CFS`, 'Flow']}
+                        labelStyle={{ color: '#111827' }}
+                      />
+                      {optimal_flow_min != null && optimal_flow_max != null && (
+                        <ReferenceArea
+                          y1={optimal_flow_min}
+                          y2={optimal_flow_max}
+                          fill="#10b981"
+                          fillOpacity={0.12}
+                          stroke="#10b981"
+                          strokeOpacity={0.25}
+                        />
+                      )}
+                      <Area
+                        type="monotone"
+                        dataKey="flow"
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        fill="#2563eb"
+                        fillOpacity={0.15}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           )}

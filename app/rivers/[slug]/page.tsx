@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchWeatherForecast } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
 import { fetchHistoricalFlow } from '@/lib/usgs-historical';
+import { fetchNWMForecast } from '@/lib/nwm-forecast';
 import { RiverDetail } from './river-detail';
 
 export const dynamic = 'force-dynamic';
@@ -124,12 +125,13 @@ async function getRiver(slug: string) {
   const lastYearDate = `${now.getFullYear() - 1}-${mm}-${dd}`;
   const twoYearsAgoDate = `${now.getFullYear() - 2}-${mm}-${dd}`;
 
-  const [historical_last_year, historical_two_years_ago] = river.usgs_station_id
+  const [historical_last_year, historical_two_years_ago, nwmForecast] = river.usgs_station_id
     ? await Promise.all([
         fetchHistoricalFlow(river.usgs_station_id, lastYearDate),
         fetchHistoricalFlow(river.usgs_station_id, twoYearsAgoDate),
+        river.nwm_reach_id ? fetchNWMForecast(river.usgs_station_id) : Promise.resolve(null),
       ])
-    : [null, null];
+    : [null, null, null];
 
   return {
     ...river,
@@ -146,6 +148,7 @@ async function getRiver(slug: string) {
     historical_last_year,
     historical_two_years_ago,
     hatches: hatches ?? [],
+    nwmForecast,
   };
 }
 
