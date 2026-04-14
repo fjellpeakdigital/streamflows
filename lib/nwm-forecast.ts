@@ -20,29 +20,18 @@ async function fetchJson(url: string, timeoutMs = 8000): Promise<any | null> {
     const t = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
     clearTimeout(t);
-    console.log(`[nwm-debug] GET ${url} -> ${res.status} ${res.statusText}`);
     if (!res.ok) return null;
     return await res.json();
-  } catch (err: any) {
-    console.log(`[nwm-debug] GET ${url} -> threw: ${err?.name ?? 'Error'} ${err?.message ?? ''}`);
+  } catch {
     return null;
   }
 }
 
 function extractReachId(body: any): string | null {
   if (!body || typeof body !== 'object') return null;
-  const candidates: unknown[] = [
-    body.reachId,
-    body.reach_id,
-    body.reach?.id,
-    body.reach?.reachId,
-    body.reach?.reach_id,
-    Array.isArray(body.reaches) ? body.reaches[0]?.id ?? body.reaches[0]?.reachId : null,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'string' && c.length > 0) return c;
-    if (typeof c === 'number' && Number.isFinite(c)) return String(c);
-  }
+  const raw = body.reachId;
+  if (typeof raw === 'string' && raw.length > 0) return raw;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw);
   return null;
 }
 
@@ -82,9 +71,7 @@ export async function resolveNWMReachId(
 export async function fetchNWMForecast(
   usgsStationId: string
 ): Promise<NWMForecast | null> {
-  console.log(`[nwm-debug] fetchNWMForecast start for usgs=${usgsStationId}`);
   const reachId = await resolveNWMReachId(usgsStationId);
-  console.log(`[nwm-debug] resolved reachId=${reachId ?? 'null'} for usgs=${usgsStationId}`);
   if (!reachId) return null;
 
   const [shortBody, mediumBody] = await Promise.all([
@@ -92,14 +79,9 @@ export async function fetchNWMForecast(
     fetchJson(REACH_FLOW_URL(reachId, 'medium_range')),
   ]);
 
-  const shortRange = parseForecastPoints(shortBody);
-  const mediumRange = parseForecastPoints(mediumBody);
-  console.log(
-    `[nwm-debug] parsed points: shortRange=${shortRange.length} mediumRange=${mediumRange.length}`
-  );
-  if (mediumRange.length === 0 && mediumBody) {
-    console.log('[nwm-debug] mediumBody top-level keys:', Object.keys(mediumBody));
-  }
-
-  return { reachId, shortRange, mediumRange };
+  return {
+    reachId,
+    shortRange: parseForecastPoints(shortBody),
+    mediumRange: parseForecastPoints(mediumBody),
+  };
 }

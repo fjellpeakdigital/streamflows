@@ -133,16 +133,6 @@ async function getRiver(slug: string) {
       ])
     : [null, null, null];
 
-  // TEMP DEBUG
-  if (river.usgs_station_id === '01169000') {
-    console.log('[nwm-debug] river row:', {
-      name: river.name,
-      usgs_station_id: river.usgs_station_id,
-      nwm_reach_id: river.nwm_reach_id,
-    });
-    console.log('[nwm-debug] nwmForecast result:', JSON.stringify(nwmForecast, null, 2));
-  }
-
   return {
     ...river,
     current_condition: currentCondition,
