@@ -20,6 +20,22 @@ export const metadata: Metadata = {
     "Real-time river conditions for 50+ New England rivers. StreamFlows translates live USGS gauge data into actionable fishing intelligence — optimal flows, trends, alerts, and more.",
 };
 
+async function getUpcomingTripCount(userId: string): Promise<number> {
+  try {
+    const supabase = await createClient();
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const { count } = await supabase
+      .from('trips')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'upcoming')
+      .gte('trip_date', todayIso);
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function getActiveAlertCount(userId: string, riverIds: string[]): Promise<number> {
   if (riverIds.length === 0) return 0;
   try {
@@ -116,9 +132,12 @@ export default async function RootLayout({
   const isAuthenticated = user !== null;
 
   const rosterData = isAuthenticated ? await getRosterRivers(user!.id) : null;
-  const activeAlertCount = isAuthenticated
-    ? await getActiveAlertCount(user!.id, rosterData?.rivers.map((r) => r.id) ?? [])
-    : 0;
+  const [activeAlertCount, upcomingTripCount] = isAuthenticated
+    ? await Promise.all([
+        getActiveAlertCount(user!.id, rosterData?.rivers.map((r) => r.id) ?? []),
+        getUpcomingTripCount(user!.id),
+      ])
+    : [0, 0];
 
   return (
     <html lang="en">
@@ -129,6 +148,7 @@ export default async function RootLayout({
               rivers={rosterData?.rivers ?? []}
               lastSyncedAt={rosterData?.lastSyncedAt ?? null}
               activeAlertCount={activeAlertCount}
+              upcomingTripCount={upcomingTripCount}
             />
             <main className="min-h-screen bg-background md:ml-64">
               {children}
