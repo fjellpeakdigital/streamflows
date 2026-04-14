@@ -433,53 +433,70 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 </p>
                 <div className="w-full h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={nwmForecast.mediumRange.map((p: NWMForecastPoint) => ({
-                        label: format(new Date(p.timestamp), 'MMM d'),
-                        time: new Date(p.timestamp).getTime(),
-                        flow: p.flow,
-                      }))}
-                      margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="label"
-                        stroke="#6b7280"
-                        fontSize={11}
-                        tickLine={false}
-                        interval="preserveStartEnd"
-                        minTickGap={24}
-                      />
-                      <YAxis
-                        stroke="#6b7280"
-                        fontSize={11}
-                        tickLine={false}
-                        width={48}
-                        label={{ value: 'CFS', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: '#6b7280' }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [value != null ? `${Math.round(value as number).toLocaleString()} CFS` : 'N/A', 'Flow']}
-                        labelStyle={{ color: '#111827' }}
-                      />
-                      {optimal_flow_min != null && optimal_flow_max != null && (
-                        <ReferenceArea
-                          y1={optimal_flow_min}
-                          y2={optimal_flow_max}
-                          fill="#10b981"
-                          fillOpacity={0.12}
-                          stroke="#10b981"
-                          strokeOpacity={0.25}
-                        />
-                      )}
-                      <Area
-                        type="monotone"
-                        dataKey="flow"
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        fill="#2563eb"
-                        fillOpacity={0.15}
-                      />
-                    </AreaChart>
+                    {(() => {
+                      const flows = nwmForecast.mediumRange.map((p: NWMForecastPoint) => p.flow);
+                      const maxFromData = flows.length > 0 ? Math.max(...flows) : 0;
+                      const maxFromOptimal = optimal_flow_max != null ? optimal_flow_max * 1.5 : 0;
+                      const yMax = Math.max(maxFromData, maxFromOptimal);
+                      return (
+                        <AreaChart
+                          data={nwmForecast.mediumRange.map((p: NWMForecastPoint) => ({
+                            label: format(new Date(p.timestamp), 'MMM d'),
+                            time: new Date(p.timestamp).getTime(),
+                            flow: p.flow,
+                          }))}
+                          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="label"
+                            stroke="#6b7280"
+                            fontSize={11}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                            minTickGap={24}
+                          />
+                          <YAxis
+                            stroke="#6b7280"
+                            fontSize={11}
+                            tickLine={false}
+                            width={48}
+                            domain={[0, yMax]}
+                            label={{ value: 'CFS', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: '#6b7280' }}
+                          />
+                          <Tooltip
+                            formatter={(value) => [value != null ? `${Math.round(value as number).toLocaleString()} CFS` : 'N/A', 'Flow']}
+                            labelStyle={{ color: '#111827' }}
+                          />
+                          {optimal_flow_min != null && optimal_flow_max != null && (
+                            <ReferenceArea
+                              y1={optimal_flow_min}
+                              y2={optimal_flow_max}
+                              fill="#10b981"
+                              fillOpacity={0.15}
+                              stroke="#10b981"
+                              strokeOpacity={0.3}
+                              ifOverflow="extendDomain"
+                              label={{
+                                value: 'Optimal',
+                                position: 'insideTopRight',
+                                fill: '#059669',
+                                fontSize: 10,
+                                fontWeight: 600,
+                              }}
+                            />
+                          )}
+                          <Area
+                            type="monotone"
+                            dataKey="flow"
+                            stroke="#2563eb"
+                            strokeWidth={2}
+                            fill="#2563eb"
+                            fillOpacity={0.15}
+                          />
+                        </AreaChart>
+                      );
+                    })()}
                   </ResponsiveContainer>
                 </div>
               </CardContent>
