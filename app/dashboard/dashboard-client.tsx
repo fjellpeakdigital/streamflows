@@ -12,7 +12,7 @@ import {
 import type { FlowEta } from '@/lib/flow-eta';
 import type { WeatherForecast } from '@/lib/weather';
 import type { RiverStatus, FlowTrend, AlertType } from '@/lib/types/database';
-import { ArrowRight, Bell, CalendarDays, LayoutDashboard, StickyNote, Users, X } from 'lucide-react';
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, LayoutDashboard, StickyNote, Users, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +89,51 @@ function thresholdLabel(type: AlertType, value: number | null): string | null {
   if (value === null) return null;
   if (type === 'temperature') return `${value}°F`;
   return `${value.toLocaleString()} CFS`;
+}
+
+interface OptimalBanner {
+  id: string;
+  river_slug: string;
+  message: string;
+  trend: string;
+}
+
+function OptimalBanners({ banners }: { banners: OptimalBanner[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const visible = banners.filter((b) => !dismissed.has(b.id));
+  if (visible.length === 0) return null;
+  return (
+    <div className="mb-3 space-y-2">
+      {visible.map((b) => (
+        <div
+          key={b.id}
+          className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <Link
+            href={`/rivers/${b.river_slug}`}
+            className="min-w-0 flex-1 text-sm text-emerald-900 hover:underline"
+          >
+            {b.message}
+          </Link>
+          <button
+            type="button"
+            onClick={() =>
+              setDismissed((prev) => {
+                const next = new Set(prev);
+                next.add(b.id);
+                return next;
+              })
+            }
+            aria-label="Dismiss"
+            className="shrink-0 text-emerald-700 hover:text-emerald-900 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AlertFeed({ alerts }: { alerts: DashboardAlert[] }) {
@@ -345,6 +390,7 @@ function ConditionsRow({ river, note }: { river: DashboardRiver; note?: string }
 export function GuideDashboard({
   rivers,
   alerts,
+  optimalBanners,
   notesByRiver,
   nextTrip,
   backup,
@@ -352,6 +398,7 @@ export function GuideDashboard({
 }: {
   rivers: DashboardRiver[];
   alerts: DashboardAlert[];
+  optimalBanners: OptimalBanner[];
   notesByRiver: Record<string, string>;
   nextTrip: NextTrip | null;
   backup: BackupSuggestion | null;
@@ -405,6 +452,7 @@ export function GuideDashboard({
         )}
       </div>
 
+      <OptimalBanners banners={optimalBanners} />
       <AlertFeed alerts={alerts} />
 
       {nextTrip && <NextTripBar trip={nextTrip} backup={backup} />}

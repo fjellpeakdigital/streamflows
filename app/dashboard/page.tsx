@@ -64,6 +64,7 @@ export default async function DashboardPage() {
       <GuideDashboard
         rivers={[]}
         alerts={[]}
+        optimalBanners={[]}
         notesByRiver={{}}
         nextTrip={null}
         backup={null}
@@ -269,6 +270,29 @@ export default async function DashboardPage() {
     };
   }
 
+  // 9b. Smart optimal-river banners
+  const optimalBanners = dashboardRivers
+    .filter((r) => r.current_condition?.status === 'optimal')
+    .map((r) => {
+      const flow = r.current_condition?.flow;
+      const flowLabel = typeof flow === 'number' ? `${flow.toLocaleString()} CFS` : 'current flow';
+      const trend = r.trend;
+      let message: string;
+      if (trend === 'falling') {
+        message = `${r.name} is optimal but falling — currently at ${flowLabel}`;
+      } else if (trend === 'rising') {
+        message = `${r.name} entered optimal range — rising at ${flowLabel}`;
+      } else {
+        message = `${r.name} hit optimal range — holding steady at ${flowLabel}`;
+      }
+      return {
+        id: `optimal:${r.id}`,
+        river_slug: r.slug,
+        message,
+        trend,
+      };
+    });
+
   // 10. Backup river suggestion
   const primaryIdForBackup =
     nextTrip?.target_river_id ??
@@ -291,6 +315,7 @@ export default async function DashboardPage() {
     <GuideDashboard
       rivers={dashboardRivers}
       alerts={alerts}
+      optimalBanners={optimalBanners}
       notesByRiver={notesByRiver}
       nextTrip={nextTrip}
       backup={backup}
