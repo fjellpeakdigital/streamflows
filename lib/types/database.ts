@@ -37,6 +37,7 @@ export interface River {
   optimal_flow_max: number | null;
   latitude: number | null;
   longitude: number | null;
+  nwm_reach_id: string | null;
   created_at: string;
   updated_at: string;
 }
