@@ -24,7 +24,7 @@ interface SidebarProps {
 }
 
 const toolLinks = [
-  { href: '/trips', label: 'Hatch calendar', icon: BookOpenText },
+  { href: '/hatches', label: 'Hatch calendar', icon: BookOpenText },
   { href: '/rivers', label: 'Flow history', icon: LineChart },
   { href: '/notes', label: 'Client notes', icon: StickyNote },
   { href: '/alerts', label: 'Alert manager', icon: Bell },
