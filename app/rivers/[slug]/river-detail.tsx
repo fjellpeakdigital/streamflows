@@ -30,6 +30,7 @@ import {
   formatTemperature,
 } from '@/lib/river-utils';
 import { calculateFlowEta } from '@/lib/flow-eta';
+import type { NWMForecastPoint } from '@/lib/nwm-forecast';
 import {
   Heart,
   CalendarPlus,
@@ -433,7 +434,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 <div className="w-full h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={nwmForecast.mediumRange.map((p) => ({
+                      data={nwmForecast.mediumRange.map((p: NWMForecastPoint) => ({
                         label: format(new Date(p.timestamp), 'MMM d'),
                         time: new Date(p.timestamp).getTime(),
                         flow: p.flow,

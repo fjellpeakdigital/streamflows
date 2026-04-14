@@ -5,7 +5,8 @@
       "Bash(git commit -m ':*)",
       "Bash(git:*)",
       "Bash(npx tsc:*)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(grep -E \"^\\(proxy|middleware\\)\\\\.ts$\")"
     ]
   }
 }
