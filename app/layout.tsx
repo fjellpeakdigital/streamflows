@@ -102,24 +102,28 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let user = null;
+  let user: { id: string } | null = null;
   try {
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
+    const { data, error } = await supabase.auth.getUser();
+    if (!error && data?.user && typeof data.user.id === 'string' && data.user.id.length > 0) {
+      user = data.user;
+    }
   } catch {
     // Supabase unavailable — render without auth state
   }
 
-  const rosterData = user ? await getRosterRivers(user.id) : null;
-  const activeAlertCount = user
-    ? await getActiveAlertCount(user.id, rosterData?.rivers.map((r) => r.id) ?? [])
+  const isAuthenticated = user !== null;
+
+  const rosterData = isAuthenticated ? await getRosterRivers(user!.id) : null;
+  const activeAlertCount = isAuthenticated
+    ? await getActiveAlertCount(user!.id, rosterData?.rivers.map((r) => r.id) ?? [])
     : 0;
 
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        {user ? (
+        {isAuthenticated ? (
           <>
             <Sidebar
               rivers={rosterData?.rivers ?? []}
@@ -132,7 +136,7 @@ export default async function RootLayout({
           </>
         ) : (
           <>
-            <Navigation user={user} />
+            <Navigation user={null} />
             <main className="min-h-screen bg-background">{children}</main>
             <Footer />
           </>
