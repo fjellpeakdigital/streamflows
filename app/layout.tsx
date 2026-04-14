@@ -120,7 +120,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let user: { id: string } | null = null;
+  let user: { id: string; email?: string | null } | null = null;
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
@@ -153,6 +153,7 @@ export default async function RootLayout({
               lastSyncedAt={rosterData?.lastSyncedAt ?? null}
               activeAlertCount={activeAlertCount}
               upcomingTripCount={upcomingTripCount}
+              userEmail={user?.email ?? null}
             />
             <main className="min-h-screen bg-background md:ml-64">
               {children}

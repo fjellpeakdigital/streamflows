@@ -9,7 +9,9 @@ import {
   CalendarDays,
   CalendarRange,
   LineChart,
+  LogOut,
   Plus,
+  Settings,
   StickyNote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,6 +23,7 @@ interface SidebarProps {
   lastSyncedAt: string | Date | null;
   activeAlertCount?: number;
   upcomingTripCount?: number;
+  userEmail?: string | null;
 }
 
 const toolLinks = [
@@ -43,6 +46,7 @@ export function Sidebar({
   lastSyncedAt,
   activeAlertCount = 0,
   upcomingTripCount = 0,
+  userEmail = null,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -158,6 +162,33 @@ export function Sidebar({
           })}
         </ul>
       </div>
+
+      {userEmail && (
+        <div className="border-t border-border px-3 py-2 flex items-center gap-2">
+          <span
+            title={userEmail}
+            className="flex-1 min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {userEmail}
+          </span>
+          <Link
+            href="/account"
+            aria-label="Account settings"
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+          <form action="/auth/signout" method="post" className="shrink-0">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
         {lastSyncedLabel}
