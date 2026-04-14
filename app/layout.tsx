@@ -6,7 +6,22 @@ import { Footer } from "@/components/footer";
 import { Sidebar } from "@/components/sidebar";
 import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
+import { cache } from "react";
 import type { Condition, River, RiverWithCondition } from "@/lib/types/database";
+
+/**
+ * Cached per-request Supabase user lookup. Import from this module anywhere
+ * a server-side RSC needs the current user — the result is memoized for the
+ * duration of a single render, so layout + page don't issue duplicate calls.
+ */
+export const getCachedUser = cache(async () => {
+  try {
+    const supabase = await createClient();
+    return await supabase.auth.getUser();
+  } catch {
+    return { data: { user: null }, error: null } as const;
+  }
+});
 
 
 const openSans = Open_Sans({
@@ -121,27 +136,31 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   let user: { id: string; email?: string | null } | null = null;
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (!error && data?.user && typeof data.user.id === 'string' && data.user.id.length > 0) {
-      user = data.user;
-    }
-  } catch {
-    // Supabase unavailable — render without auth state
+  const { data, error } = await getCachedUser();
+  if (!error && data?.user && typeof data.user.id === 'string' && data.user.id.length > 0) {
+    user = data.user;
   }
 
   const isAuthenticated = user !== null;
   const pathname = (await headers()).get('x-pathname') ?? '/';
   const showSidebar = isAuthenticated && pathname !== '/';
 
-  const rosterData = showSidebar ? await getRosterRivers(user!.id) : null;
-  const [activeAlertCount, upcomingTripCount] = showSidebar
-    ? await Promise.all([
-        getActiveAlertCount(user!.id, rosterData?.rivers.map((r) => r.id) ?? []),
-        getUpcomingTripCount(user!.id),
-      ])
-    : [0, 0];
+  let rosterData: { rivers: RiverWithCondition[]; lastSyncedAt: string | null } | null = null;
+  let activeAlertCount = 0;
+  let upcomingTripCount = 0;
+
+  if (showSidebar) {
+    const rosterPromise = getRosterRivers(user!.id);
+    const alertPromise = rosterPromise.then((rd) =>
+      getActiveAlertCount(user!.id, rd.rivers.map((r) => r.id))
+    );
+    const tripPromise = getUpcomingTripCount(user!.id);
+
+    const [rd, ac, uc] = await Promise.all([rosterPromise, alertPromise, tripPromise]);
+    rosterData = rd;
+    activeAlertCount = ac;
+    upcomingTripCount = uc;
+  }
 
   return (
     <html lang="en">

@@ -4,6 +4,7 @@ import { fetchWeatherForRivers } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
 import { calculateStatus } from '@/lib/river-utils';
 import { scoreBackupRiver } from '@/lib/backup-river-scorer';
+import { getCachedUser } from '@/app/layout';
 import { GuideDashboard } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ export function isHatchSoon(
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getCachedUser();
 
   if (!user) redirect('/login');
 
@@ -73,46 +74,78 @@ export default async function DashboardPage() {
     );
   }
 
-  // 2. Rivers
-  const { data: rivers } = await supabase
+  const seventyTwoHoursAgo = new Date();
+  seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // All queries below only depend on rosterIds / user.id — run them in one round-trip.
+  const riversPromise = supabase
     .from('rivers')
     .select('*')
     .in('id', rosterIds)
     .order('name');
 
-  // 3. Last 72h conditions
-  const seventyTwoHoursAgo = new Date();
-  seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+  // Weather depends on rivers result; chain it so it rides the same Promise.all.
+  const weatherPromise = riversPromise.then(({ data }) =>
+    fetchWeatherForRivers(data ?? [])
+  );
 
-  const { data: conditions } = await supabase
-    .from('conditions')
-    .select('*')
-    .in('river_id', rosterIds)
-    .gte('timestamp', seventyTwoHoursAgo.toISOString())
-    .order('timestamp', { ascending: true });
-
-  // 4. Recent angler check-ins (7 days)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const { data: checkins } = await supabase
-    .from('river_checkins')
-    .select('river_id, conditions_rating')
-    .eq('is_public', true)
-    .in('river_id', rosterIds)
-    .gte('fished_at', sevenDaysAgo.toISOString());
-
-  // 5. Weather
-  const weatherMap = await fetchWeatherForRivers(rivers ?? []);
-
-  // 6. Active alerts for roster rivers (most recent 5)
-  const { data: alertRows } = await supabase
-    .from('user_alerts')
-    .select('id, river_id, alert_type, threshold_value, updated_at, rivers(name, slug)')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .in('river_id', rosterIds)
-    .order('updated_at', { ascending: false })
-    .limit(5);
+  const [
+    { data: rivers },
+    { data: conditions },
+    { data: checkins },
+    { data: alertRows },
+    { data: noteRows },
+    { data: hatchRows },
+    weatherMap,
+    { data: nextTripRow },
+  ] = await Promise.all([
+    riversPromise,
+    supabase
+      .from('conditions')
+      .select('*')
+      .in('river_id', rosterIds)
+      .gte('timestamp', seventyTwoHoursAgo.toISOString())
+      .order('timestamp', { ascending: true }),
+    supabase
+      .from('river_checkins')
+      .select('river_id, conditions_rating')
+      .eq('is_public', true)
+      .in('river_id', rosterIds)
+      .gte('fished_at', sevenDaysAgo.toISOString()),
+    supabase
+      .from('user_alerts')
+      .select('id, river_id, alert_type, threshold_value, updated_at, rivers(name, slug)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .in('river_id', rosterIds)
+      .order('updated_at', { ascending: false })
+      .limit(5),
+    supabase
+      .from('user_notes')
+      .select('river_id, note, updated_at')
+      .eq('user_id', user.id)
+      .in('river_id', rosterIds)
+      .order('updated_at', { ascending: false }),
+    supabase
+      .from('hatch_events')
+      .select('id, river_id, insect, start_month, start_day, end_month, end_day')
+      .in('river_id', rosterIds),
+    weatherPromise,
+    supabase
+      .from('trips')
+      .select(
+        'id, trip_date, client_count, target_river_id, target_river:rivers!trips_target_river_id_fkey(id, name, slug, optimal_flow_min, optimal_flow_max)'
+      )
+      .eq('user_id', user.id)
+      .eq('status', 'upcoming')
+      .gte('trip_date', todayIso)
+      .order('trip_date', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const alerts = (alertRows ?? []).map((a: any) => ({
     id: a.id,
@@ -124,26 +157,12 @@ export default async function DashboardPage() {
     updated_at: a.updated_at,
   }));
 
-  // 7. Most recent note per roster river
-  const { data: noteRows } = await supabase
-    .from('user_notes')
-    .select('river_id, note, updated_at')
-    .eq('user_id', user.id)
-    .in('river_id', rosterIds)
-    .order('updated_at', { ascending: false });
-
   const notesByRiver: Record<string, string> = {};
   for (const n of noteRows ?? []) {
     if (!notesByRiver[n.river_id] && n.note) {
       notesByRiver[n.river_id] = n.note;
     }
   }
-
-  // 7b. Hatch events (seed + user's own, via RLS)
-  const { data: hatchRows } = await supabase
-    .from('hatch_events')
-    .select('id, river_id, insect, start_month, start_day, end_month, end_day')
-    .in('river_id', rosterIds);
 
   const today = new Date();
   const hatchesByRiver = new Map<string, { active: string[]; soon: string[] }>();
@@ -204,20 +223,7 @@ export default async function DashboardPage() {
     };
   });
 
-  // 9. Next upcoming trip
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const { data: nextTripRow } = await supabase
-    .from('trips')
-    .select(
-      'id, trip_date, client_count, target_river_id, target_river:rivers!trips_target_river_id_fkey(id, name, slug, optimal_flow_min, optimal_flow_max)'
-    )
-    .eq('user_id', user.id)
-    .eq('status', 'upcoming')
-    .gte('trip_date', todayIso)
-    .order('trip_date', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
+  // Next upcoming trip (fetched in the main Promise.all above)
   let nextTrip = null as null | {
     id: string;
     trip_date: string;

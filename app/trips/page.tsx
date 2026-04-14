@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { calculateStatus } from '@/lib/river-utils';
+import { getCachedUser } from '@/app/layout';
 import { TripsClient } from './trips-client';
 import type { RiverStatus } from '@/lib/types/database';
 
@@ -32,28 +33,40 @@ export default async function TripsPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getCachedUser();
 
   if (!user) redirect('/login');
 
-  // All rivers for the picker — guides can pick any river for a trip
-  const { data: allRivers } = await supabase
-    .from('rivers')
-    .select('id, name, slug, optimal_flow_min, optimal_flow_max')
-    .order('name')
-    .limit(5000);
-
-  // Roster IDs (for status-dot priority when the picked river is on the roster)
-  const { data: rosterRows } = await supabase
-    .from('user_roster')
-    .select('river_id')
-    .eq('user_id', user.id)
-    .eq('archived', false);
+  // Fire rivers / roster / trips in parallel — none depend on each other.
+  const [
+    { data: allRivers },
+    { data: rosterRows },
+    { data: tripRows },
+  ] = await Promise.all([
+    supabase
+      .from('rivers')
+      .select('id, name, slug, optimal_flow_min, optimal_flow_max')
+      .order('name')
+      .limit(5000),
+    supabase
+      .from('user_roster')
+      .select('river_id')
+      .eq('user_id', user.id)
+      .eq('archived', false),
+    supabase
+      .from('trips')
+      .select(
+        'id, trip_date, client_count, client_notes, target_river_id, backup_river_id, status, post_trip_notes, flow_at_trip, temp_at_trip, target_river:rivers!trips_target_river_id_fkey(name, slug), backup_river:rivers!trips_backup_river_id_fkey(name, slug)'
+      )
+      .eq('user_id', user.id)
+      .order('trip_date', { ascending: false }),
+  ]);
 
   const rosterIdSet = new Set(
     (rosterRows ?? []).map((r: any) => r.river_id as string)
   );
 
+  // Conditions must be chained off the resolved roster IDs.
   const latestByRiver = new Map<string, any>();
   if (rosterIdSet.size > 0) {
     const seventyTwoHoursAgo = new Date();
@@ -78,14 +91,6 @@ export default async function TripsPage() {
       : 'unknown') as RiverStatus;
     return { id: r.id, name: r.name, slug: r.slug, status };
   });
-
-  const { data: tripRows } = await supabase
-    .from('trips')
-    .select(
-      'id, trip_date, client_count, client_notes, target_river_id, backup_river_id, status, post_trip_notes, flow_at_trip, temp_at_trip, target_river:rivers!trips_target_river_id_fkey(name, slug), backup_river:rivers!trips_backup_river_id_fkey(name, slug)'
-    )
-    .eq('user_id', user.id)
-    .order('trip_date', { ascending: false });
 
   const trips = (tripRows ?? []) as unknown as TripRow[];
 
