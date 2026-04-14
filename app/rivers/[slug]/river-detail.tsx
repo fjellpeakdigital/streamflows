@@ -458,7 +458,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                         label={{ value: 'CFS', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: '#6b7280' }}
                       />
                       <Tooltip
-                        formatter={(value: number) => [`${Math.round(value).toLocaleString()} CFS`, 'Flow']}
+                        formatter={(value) => [value != null ? `${Math.round(value as number).toLocaleString()} CFS` : 'N/A', 'Flow']}
                         labelStyle={{ color: '#111827' }}
                       />
                       {optimal_flow_min != null && optimal_flow_max != null && (
