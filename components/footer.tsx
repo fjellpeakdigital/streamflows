@@ -18,7 +18,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Real-time river intelligence for New England fly fishing. A product by Back Alley Fly.
+              Real-time river intelligence for fly fishing guides and anglers across the Northeast and Midwest. A product by Back Alley Fly.
             </p>
           </div>
 
@@ -64,8 +64,18 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/favorites" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Favorites
+                <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/trips" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Trip Planner
+                </Link>
+              </li>
+              <li>
+                <Link href="/hatches" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Hatch Calendar
                 </Link>
               </li>
               <li>
@@ -92,7 +102,7 @@ export function Footer() {
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">
-                  50+ rivers across 6 states
+                  1,500+ rivers across the Northeast &amp; Midwest
                 </span>
               </li>
             </ul>

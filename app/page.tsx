@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import {
   Activity,
   Bell,
-  Heart,
+  CalendarPlus,
+  Leaf,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -15,7 +16,6 @@ import {
   Target,
   BarChart3,
   BookOpen,
-  Shield,
   Users,
   Map,
   CheckCircle2,
@@ -215,7 +215,7 @@ function HeroSection() {
 
 const trustItems = [
   { icon: Map, value: '1,500+', label: 'Rivers across NE & Midwest' },
-  { icon: Shield, value: '6', label: 'States Covered' },
+  { icon: TrendingUp, value: '5-Day', label: 'Flow Forecasts' },
   { icon: Radio, value: '15 min', label: 'Update Frequency' },
   { icon: Activity, value: 'USGS', label: 'Powered by Live Data' },
   { icon: SlidersHorizontal, value: 'Tuned', label: 'River-Specific Ranges' },
@@ -413,9 +413,9 @@ const howItWorksSteps = [
   {
     number: '04',
     icon: BarChart3,
-    title: 'Trends and context',
+    title: 'Trends, history, and forecasts',
     description:
-      'See whether flows are rising, falling, or stable — plus 24-hour charts so you can spot the window before it closes.',
+      'See whether flows are rising, falling, or stable. 72-hour flow history and 5-day NOAA forecasts give you the full picture — spot the window before it opens, not after.',
   },
 ];
 
@@ -468,15 +468,29 @@ const features = [
     icon: BarChart3,
     title: 'See where conditions are headed',
     description:
-      'Trend arrows and 24-hour flow charts show whether a river is rising, falling, or holding steady. Spot the window opening — or closing — before anyone else does.',
-    detail: 'Trends compare current flow against 3-hour-ago readings for reliable direction.',
+      'Trend arrows and flow charts show whether a river is rising, falling, or holding steady. StreamFlows also layers in 5-day NOAA flow forecasts — so you can spot the window opening before anyone else does.',
+    detail: 'Short-range hourly and 5-day medium-range forecasts via the NOAA National Water Model, updated daily.',
   },
   {
-    icon: Heart,
-    title: 'Watch your home waters',
+    icon: Map,
+    title: 'Build your river roster',
     description:
-      'Pin your go-to rivers and see them all in one view. No more bookmarking five USGS pages and checking them one by one before every trip.',
-    detail: 'Your favorites dashboard shows status, flow, temp, and trend at a glance.',
+      'Add your go-to rivers to a personal roster and see them all on one dashboard — flow, temp, trend, and status at a glance. No more juggling USGS bookmarks or checking five different pages before every trip.',
+    detail: 'Your roster syncs in real-time. Add backup rivers, track alert counts, and see upcoming trip context — all from the sidebar.',
+  },
+  {
+    icon: CalendarPlus,
+    title: 'Plan client days with confidence',
+    description:
+      'Create trip logs tied to specific rivers, track upcoming bookings, and let StreamFlows suggest backup rivers scored by current conditions. When flows shift near a trip date, you know before your client does.',
+    detail: 'The backup scorer ranks your roster rivers by status, trend, and proximity to your primary river.',
+  },
+  {
+    icon: Leaf,
+    title: 'Know what\u2019s hatching',
+    description:
+      'Per-river hatch calendars show what insects are emerging right now and what\u2019s coming up next. Time your bookings around the Blue-Winged Olive emergence on the Farmington or the Sulphur hatch on the Battenkill.',
+    detail: 'Hatch data is editable — add your own observations and patterns as conditions change.',
   },
   {
     icon: Bell,
@@ -539,11 +553,12 @@ function FeaturesSection() {
    ──────────────────────────────────────────── */
 
 const guidesBenefits = [
-  'Check conditions across multiple rivers before planning a client day',
-  'See at a glance which rivers are fishing well right now',
-  'Get alerts when your backup rivers hit optimal windows',
-  'Keep private notes on access points, hatches, and patterns',
-  'Stop wasting client time driving to blown-out water',
+  'Check your entire roster at a glance before every client day',
+  'See which rivers are fishing well now — and which will be in 5 days',
+  'Plan trips with automatic backup river suggestions based on live conditions',
+  'Track upcoming hatches to time bookings around peak fishing windows',
+  'Get alerts when flow conditions change near a booked trip date',
+  'Keep private notes on access points, patterns, and client preferences',
 ];
 
 const anglersBenefits = [
@@ -634,7 +649,7 @@ const withItems = [
   'Know instantly which rivers are fishing well',
   'Trend arrows and 24-hour charts show direction',
   'Alerts notify you the moment conditions change',
-  'Favorites, notes, and alerts — all in one place',
+  'Roster, trip planner, hatch calendar, notes, and alerts — in one place',
 ];
 
 function ComparisonSection() {
@@ -709,7 +724,7 @@ function FinalCTASection() {
           <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
             Join guides and anglers across the Northeast and Midwest who check StreamFlows before
             every trip. Browse live conditions now, or create a free account to
-            save favorites and set alerts.
+            build your roster, plan client trips, and set flow alerts.
           </p>
 
           <div className="flex flex-wrap gap-3 justify-center">
