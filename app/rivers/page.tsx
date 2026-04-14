@@ -80,13 +80,17 @@ async function getRivers() {
     const trend = currentCondition?.trend ?? 'unknown';
     const is_favorite = favorites.some((f) => f.river_id === river.id);
 
-    // If status wasn't stored by the Edge Function, calculate it from raw flow data
-    if (currentCondition && !currentCondition.status) {
-      currentCondition.status = calculateStatus(
-        currentCondition.flow,
-        river.optimal_flow_min,
-        river.optimal_flow_max
-      );
+    // Always recalculate status when flow is absent — the stored value may be stale.
+    // Also recalculate when status is missing entirely.
+    if (currentCondition) {
+      const flowAbsent = currentCondition.flow === null || currentCondition.flow <= -999000;
+      if (!currentCondition.status || flowAbsent) {
+        currentCondition.status = calculateStatus(
+          currentCondition.flow,
+          river.optimal_flow_min,
+          river.optimal_flow_max
+        );
+      }
     }
 
     const agg = checkinMap.get(river.id);

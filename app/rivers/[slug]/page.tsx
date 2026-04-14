@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fetchWeatherForecast } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
+import { calculateStatus } from '@/lib/river-utils';
 import { fetchHistoricalFlow } from '@/lib/usgs-historical';
 import { fetchNWMForecast } from '@/lib/nwm-forecast';
 import { RiverDetail } from './river-detail';
@@ -100,9 +101,21 @@ async function getRiver(slug: string) {
   }));
 
   const allConditions = conditions || [];
-  const currentCondition = allConditions[allConditions.length - 1];
+  const currentCondition = allConditions[allConditions.length - 1] ?? null;
   // Read trend from the most recent condition (stored by the cron job)
   const trend = currentCondition?.trend ?? 'unknown';
+
+  // Always override status when flow is absent — stored status may be stale.
+  if (currentCondition) {
+    const flowAbsent = currentCondition.flow === null || currentCondition.flow <= -999000;
+    if (!currentCondition.status || flowAbsent) {
+      currentCondition.status = calculateStatus(
+        currentCondition.flow,
+        river.optimal_flow_min,
+        river.optimal_flow_max
+      );
+    }
+  }
 
   const eta = calculateFlowEta(allConditions, river.optimal_flow_min, river.optimal_flow_max);
 

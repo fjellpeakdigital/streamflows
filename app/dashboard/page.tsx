@@ -192,12 +192,15 @@ export default async function DashboardPage() {
     const currentCondition = riverConditions[riverConditions.length - 1] ?? null;
     const trend = currentCondition?.trend ?? 'unknown';
 
-    if (currentCondition && !currentCondition.status) {
-      currentCondition.status = calculateStatus(
-        currentCondition.flow,
-        river.optimal_flow_min,
-        river.optimal_flow_max
-      );
+    if (currentCondition) {
+      const flowAbsent = currentCondition.flow === null || currentCondition.flow <= -999000;
+      if (!currentCondition.status || flowAbsent) {
+        currentCondition.status = calculateStatus(
+          currentCondition.flow,
+          river.optimal_flow_min,
+          river.optimal_flow_max
+        );
+      }
     }
 
     const agg = checkinMap.get(river.id);

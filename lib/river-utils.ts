@@ -5,8 +5,8 @@ export function calculateStatus(
   optimalMin: number | null,
   optimalMax: number | null
 ): RiverStatus {
-  if (flow !== null && flow <= -999000) return 'no_data';
-  if (flow === null) return 'unknown';
+  if (flow === null) return 'no_data';
+  if (flow <= -999000) return 'no_data';
   if (optimalMin === null || optimalMax === null) return 'unknown';
   if (flow < optimalMin)                              return 'low';
   if (flow >= optimalMin && flow <= optimalMax)        return 'optimal';
