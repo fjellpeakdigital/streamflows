@@ -12,7 +12,7 @@ import {
 import type { FlowEta } from '@/lib/flow-eta';
 import type { WeatherForecast } from '@/lib/weather';
 import type { RiverStatus, FlowTrend, AlertType } from '@/lib/types/database';
-import { ArrowRight, Bell, CalendarDays, CheckCircle2, LayoutDashboard, StickyNote, Users, X } from 'lucide-react';
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, LayoutDashboard, SlidersHorizontal, StickyNote, Users, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -405,6 +405,7 @@ export function GuideDashboard({
   user: any;
 }) {
   void user;
+  const [scope, setScope] = useState<'mine' | 'ne'>('mine');
 
   if (rivers.length === 0) {
     return (
@@ -431,15 +432,56 @@ export function GuideDashboard({
   });
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Today's Conditions</h1>
-        <p className="text-sm text-muted-foreground">
-          {rivers.length} river{rivers.length !== 1 ? 's' : ''} on your roster ·{' '}
-          {format(new Date(), 'EEE MMM d, h:mm a')}
-        </p>
-        {backup && (
-          <p className="text-xs text-muted-foreground mt-1">
+    <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-b border-border mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-lg sm:text-xl font-bold whitespace-nowrap">
+            Today's conditions
+            <span className="hidden sm:inline text-muted-foreground font-normal">
+              {' '}— {format(new Date(), 'EEE MMM d')}
+            </span>
+          </h1>
+
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setScope('mine')}
+                className={cn(
+                  'px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
+                  scope === 'mine'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                My rivers
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('ne')}
+                className={cn(
+                  'px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
+                  scope === 'ne'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                New England
+              </button>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              title="Filter (coming soon)"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Filter
+            </button>
+          </div>
+        </div>
+
+        {backup && scope === 'mine' && (
+          <p className="text-xs text-muted-foreground mt-2">
             Best backup:{' '}
             <Link
               href={`/rivers/${backup.river_slug}`}
@@ -452,20 +494,35 @@ export function GuideDashboard({
         )}
       </div>
 
-      <OptimalBanners banners={optimalBanners} />
-      <AlertFeed alerts={alerts} />
+      {scope === 'mine' ? (
+        <>
+          <OptimalBanners banners={optimalBanners} />
+          <AlertFeed alerts={alerts} />
 
-      {nextTrip && <NextTripBar trip={nextTrip} backup={backup} />}
+          {nextTrip && <NextTripBar trip={nextTrip} backup={backup} />}
 
-      <div className="space-y-2">
-        {sorted.map((river) => (
-          <ConditionsRow
-            key={river.id}
-            river={river}
-            note={notesByRiver[river.id]}
-          />
-        ))}
-      </div>
+          <div className="space-y-2">
+            {sorted.map((river) => (
+              <ConditionsRow
+                key={river.id}
+                river={river}
+                note={notesByRiver[river.id]}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="bg-card border border-border rounded-xl px-4 py-12 text-center">
+          <p className="text-sm font-medium mb-1">New England mode — coming soon</p>
+          <p className="text-xs text-muted-foreground">
+            We&apos;ll surface every live gauge in the region here.{' '}
+            <Link href="/rivers" className="text-primary hover:underline">
+              Browse all rivers
+            </Link>{' '}
+            in the meantime.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
