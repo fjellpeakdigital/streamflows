@@ -102,7 +102,7 @@ async function getRivers() {
 
 async function getStats(rivers: RiverWithCondition[]) {
   const statusCounts: Record<RiverStatus, number> = {
-    optimal: 0, elevated: 0, high: 0, low: 0, ice_affected: 0, unknown: 0,
+    optimal: 0, elevated: 0, high: 0, low: 0, ice_affected: 0, no_data: 0, unknown: 0,
   };
   rivers.forEach((river) => {
     const status = river.current_condition?.status ?? 'unknown';
