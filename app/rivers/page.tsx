@@ -16,7 +16,7 @@ async function getRivers() {
 
   if (riversError) {
     console.error('Error fetching rivers:', riversError);
-    return [];
+    return { rivers: [], rosterRiverIds: [], isAuthenticated: false };
   }
 
   const { data: conditions } = await supabase
