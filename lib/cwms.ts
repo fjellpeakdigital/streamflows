@@ -23,14 +23,18 @@ const CWMS_BASE = 'https://cwms-data.usace.army.mil/cwms-data';
 
 // ── Shared JSON fetch helper ───────────────────────────────────────────────────
 
-async function fetchJson(url: string, timeoutMs = 20_000): Promise<unknown> {
+async function fetchJson(
+  url: string,
+  timeoutMs = 20_000,
+  accept = 'application/json'
+): Promise<unknown> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       cache: 'no-store',
-      headers: { Accept: 'application/json;version=2' },
+      headers: { Accept: accept },
     });
     clearTimeout(t);
     if (!res.ok) return null;
@@ -122,7 +126,7 @@ export async function fetchCwmsLocations(
   timeoutMs = 20_000
 ): Promise<{ locations: CwmsLocation[]; error: string | null }> {
   const url = `${CWMS_BASE}/locations?office=${encodeURIComponent(office)}&pageSize=5000`;
-  const body = await fetchJson(url, timeoutMs);
+  const body = await fetchJson(url, timeoutMs, 'application/json;version=2');
   if (!body) {
     return { locations: [], error: `No response from CWMS for office ${office}` };
   }

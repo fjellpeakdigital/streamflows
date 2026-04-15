@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       try {
         const res = await fetch(url, {
           cache: 'no-store',
-          headers: { Accept: 'application/json;version=2' },
+          headers: { Accept: 'application/json' },
         });
         const body = res.ok ? await res.json() : { _httpStatus: res.status, _url: url };
         probes[param] = { status: res.status, body };
