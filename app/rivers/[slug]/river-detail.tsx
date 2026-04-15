@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -123,6 +124,43 @@ function TrendIcon({ trend }: { trend: string }) {
   return <Minus className="h-5 w-5 text-muted-foreground"   aria-label="Stable" />;
 }
 
+/**
+ * Return a concise flood stage context string for the gage height cell.
+ * All values are in feet. Returns null if there is insufficient data to say
+ * anything meaningful.
+ */
+function floodStageSubtext(
+  gageHeight: number | null | undefined,
+  actionStage: number | null | undefined,
+  floodStage: number | null | undefined,
+  moderateFloodStage: number | null | undefined,
+  majorFloodStage: number | null | undefined,
+): string | null {
+  if (gageHeight == null) return null;
+
+  if (majorFloodStage != null && gageHeight >= majorFloodStage) {
+    return `Major flood stage (${majorFloodStage.toFixed(1)} ft)`;
+  }
+  if (moderateFloodStage != null && gageHeight >= moderateFloodStage) {
+    return `Moderate flood stage (${moderateFloodStage.toFixed(1)} ft)`;
+  }
+  if (floodStage != null && gageHeight >= floodStage) {
+    return `Flood stage (${floodStage.toFixed(1)} ft)`;
+  }
+  if (actionStage != null && gageHeight >= actionStage) {
+    return `Action stage reached (${actionStage.toFixed(1)} ft)`;
+  }
+  if (floodStage != null) {
+    const below = (floodStage - gageHeight).toFixed(1);
+    return `${below} ft below flood stage`;
+  }
+  if (actionStage != null) {
+    const below = (actionStage - gageHeight).toFixed(1);
+    return `${below} ft below action stage`;
+  }
+  return null;
+}
+
 interface Toast {
   type: 'success' | 'error';
   message: string;
@@ -132,6 +170,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   const {
     id, name, region, description, usgs_station_id,
     latitude, longitude, optimal_flow_min, optimal_flow_max,
+    action_stage, flood_stage, moderate_flood_stage, major_flood_stage,
     current_condition, conditions, species, is_favorite, user_note, trend, user,
     checkins: initialCheckins = [],
     eta, weather,
@@ -347,12 +386,14 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     sub: optimal_flow_min && optimal_flow_max
                       ? `Optimal ${optimal_flow_min}–${optimal_flow_max} CFS`
                       : null,
+                    subVariant: 'muted' as const,
                   },
                   {
                     icon: Thermometer,
                     label: 'Temperature',
                     value: formatTemperature(current_condition?.temperature ?? null),
                     sub: null,
+                    subVariant: 'muted' as const,
                   },
                   {
                     icon: Gauge,
@@ -360,16 +401,37 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     value: current_condition?.gage_height
                       ? `${current_condition.gage_height.toFixed(2)} ft`
                       : 'N/A',
-                    sub: null,
+                    sub: floodStageSubtext(
+                      current_condition?.gage_height,
+                      action_stage,
+                      flood_stage,
+                      moderate_flood_stage,
+                      major_flood_stage,
+                    ),
+                    subVariant: (() => {
+                      const h = current_condition?.gage_height;
+                      if (h == null) return 'muted' as const;
+                      if (flood_stage != null && h >= flood_stage) return 'danger' as const;
+                      if (action_stage != null && h >= action_stage) return 'warning' as const;
+                      return 'muted' as const;
+                    })(),
                   },
-                ].map(({ icon: Icon, label, value, sub }) => (
+                ].map(({ icon: Icon, label, value, sub, subVariant }) => (
                   <div key={label} className="bg-secondary rounded-xl px-3 py-3">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                       <Icon className="h-3.5 w-3.5" />
                       {label}
                     </div>
                     <div className="text-xl font-bold">{value}</div>
-                    {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+                    {sub && (
+                      <div className={cn('text-xs mt-0.5', {
+                        'text-muted-foreground': subVariant === 'muted',
+                        'text-amber-600 font-medium': subVariant === 'warning',
+                        'text-red-600 font-medium': subVariant === 'danger',
+                      })}>
+                        {sub}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
