@@ -26,7 +26,7 @@ const CWMS_BASE = 'https://cwms-data.usace.army.mil/cwms-data';
 async function fetchJson(
   url: string,
   timeoutMs = 20_000,
-  accept = 'application/json'
+  accept = '*/*'
 ): Promise<unknown> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
