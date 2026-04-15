@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/trip-alerts",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-cwms-data",
+      "schedule": "0 * * * *"
     }
   ]
 }

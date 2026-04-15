@@ -48,6 +48,18 @@ export interface River {
   moderate_flood_stage: number | null;
   /** Gage height (ft) at which major flooding begins */
   major_flood_stage: number | null;
+  /** CWMS location short code assigned by populate-cwms-locations (e.g. "TLD", "SMD") */
+  cwms_location_id: string | null;
+  /** USACE district code (e.g. "NAE", "NAB") */
+  cwms_office: string | null;
+  /** CWMS location kind — PROJECT | STREAM_LOCATION | STREAM_GAGE | SITE */
+  cwms_location_kind: string | null;
+  /** Current pool elevation in feet NGVD (PROJECT rivers only) */
+  reservoir_pool_ft: number | null;
+  /** Current outflow / release rate in CFS (PROJECT rivers only) */
+  reservoir_release_cfs: number | null;
+  /** Timestamp of last successful CWMS reservoir fetch */
+  reservoir_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
