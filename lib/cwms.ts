@@ -23,14 +23,18 @@ const CWMS_BASE = 'https://cwms-data.usace.army.mil/cwms-data';
 
 // ── Shared JSON fetch helper ───────────────────────────────────────────────────
 
-async function fetchJson(url: string, timeoutMs = 20_000): Promise<unknown> {
+async function fetchJson(
+  url: string,
+  timeoutMs = 20_000,
+  accept = '*/*'
+): Promise<unknown> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       cache: 'no-store',
-      headers: { Accept: 'application/json;version=2' },
+      headers: { Accept: accept },
     });
     clearTimeout(t);
     if (!res.ok) return null;
@@ -122,7 +126,7 @@ export async function fetchCwmsLocations(
   timeoutMs = 20_000
 ): Promise<{ locations: CwmsLocation[]; error: string | null }> {
   const url = `${CWMS_BASE}/locations?office=${encodeURIComponent(office)}&pageSize=5000`;
-  const body = await fetchJson(url, timeoutMs);
+  const body = await fetchJson(url, timeoutMs, 'application/json;version=2');
   if (!body) {
     return { locations: [], error: `No response from CWMS for office ${office}` };
   }
@@ -202,7 +206,7 @@ export async function fetchLatestTsValue(
   office: string
 ): Promise<TsReading | null> {
   const end = new Date();
-  const begin = new Date(end.getTime() - 6 * 60 * 60 * 1000); // 6 hours back
+  const begin = new Date(end.getTime() - 24 * 60 * 60 * 1000); // 24 hours back
 
   const url =
     `${CWMS_BASE}/timeseries` +
@@ -222,7 +226,14 @@ export async function fetchLatestTsValue(
   return readings[readings.length - 1];
 }
 
-// ── Reservoir data ─────────────────────────────────────────────────────────────
+// ── Reservoir data (catalog-first approach) ────────────────────────────────────
+//
+// CWMS TSID naming and units vary by office/dam — we cannot assume a fixed
+// parameter pattern. Instead we:
+//   1. Query /catalog/TIMESERIES for the location to discover actual TSIDs.
+//   2. Score each entry as a pool-elevation or release-flow candidate.
+//   3. Fetch the highest-scoring TSID for each.
+//   4. Convert units to imperial (m → ft, cms → CFS).
 
 export interface ReservoirData {
   poolElevationFt: number | null;
@@ -233,56 +244,133 @@ export interface ReservoirData {
   releaseTsid: string | null;
 }
 
-// Parameter name candidates to try, in priority order
-const POOL_PARAMS = [
-  'Elev.Inst.1Hour.0.raw',
-  'Elev.Inst.15Minutes.0.raw',
-  'Elev-Pool.Inst.1Hour.0.raw',
-  'Elev-Pool.Inst.15Minutes.0.raw',
-  'Elev.Ave.1Hour.0.raw',
-];
+interface TsCatalogEntry {
+  name: string;
+  units: string;
+  interval: string;
+}
 
-const RELEASE_PARAMS = [
-  'Flow-Out.Inst.1Hour.0.raw',
-  'Flow-Out.Inst.15Minutes.0.raw',
-  'Flow.Inst.1Hour.0.raw',
-  'Flow.Inst.15Minutes.0.raw',
-  'Flow-Out.Ave.1Hour.0.raw',
-];
+/** Smaller intervals = more frequent data = higher score */
+const INTERVAL_PRIORITY: Record<string, number> = {
+  '5Minutes':  6,
+  '15Minutes': 5,
+  '1Hour':     4,
+  '6Hours':    3,
+  '12Hours':   2,
+  '1Day':      1,
+};
 
-async function tryParams(
+/**
+ * Score a TSID as a pool-elevation candidate.
+ * Returns -1 if disqualified, otherwise a positive score (higher = better).
+ */
+function scorePoolTsid(name: string, interval: string): number {
+  // Piezometer readings (Elev-PZxx) measure embedded instrument pressure, not pool level
+  if (/\.Elev-PZ/.test(name)) return -1;
+  let score = 0;
+  if (name.includes('.Stage-Pool.'))    score += 10;
+  else if (/\.Elev\./.test(name))       score += 8;
+  else return -1;
+  if (name.endsWith('DCP-rev'))         score += 3;
+  else if (name.endsWith('DCP-raw'))    score += 1;
+  score += (INTERVAL_PRIORITY[interval] ?? 0);
+  return score;
+}
+
+/**
+ * Score a TSID as a release-flow candidate.
+ * Returns -1 if disqualified, otherwise a positive score (higher = better).
+ */
+function scoreReleaseTsid(name: string, interval: string): number {
+  // Exclude inflow — we want outflow / release
+  if (name.includes('.Flow-Inflow.') || name.includes('-Inflow.')) return -1;
+  let score = 0;
+  if (name.includes('.Flow-Out.'))      score += 10;
+  else if (name.includes('.Flow.Inst.'))score += 9;
+  else if (name.includes('.Flow.Ave.')) score += 7;
+  else return -1;
+  if (name.endsWith('DCP-rev'))         score += 3;
+  else if (name.endsWith('DCP-raw'))    score += 1;
+  score += (INTERVAL_PRIORITY[interval] ?? 0);
+  return score;
+}
+
+function metersToFeet(m: number): number { return m * 3.28084; }
+function cmsToCfs(cms: number): number   { return cms * 35.3147; }
+
+function toImperialElevation(value: number, units: string): number {
+  return units === 'm' ? metersToFeet(value) : value;
+}
+function toImperialFlow(value: number, units: string): number {
+  return units === 'cms' ? cmsToCfs(value) : value;
+}
+
+/** Fetch the timeseries catalog for a single CWMS location. */
+async function fetchTsCatalog(
   locationId: string,
   office: string,
-  params: string[]
-): Promise<{ value: number; tsid: string } | null> {
-  for (const param of params) {
-    const tsid = `${locationId}.${param}`;
-    const reading = await fetchLatestTsValue(tsid, office);
-    if (reading !== null) {
-      return { value: reading.value, tsid };
-    }
-  }
-  return null;
+  timeoutMs = 15_000
+): Promise<TsCatalogEntry[]> {
+  const url =
+    `${CWMS_BASE}/catalog/TIMESERIES` +
+    `?office=${encodeURIComponent(office)}` +
+    `&like=${encodeURIComponent(locationId + '.*')}` +
+    `&pageSize=200`;
+  const body = await fetchJson(url, timeoutMs);
+  if (!body || typeof body !== 'object') return [];
+  const entries = (body as any)?.entries;
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((e: any) => ({
+      name:     String(e.name ?? ''),
+      units:    String(e.units ?? ''),
+      interval: String(e.interval ?? ''),
+    }))
+    .filter(e => e.name);
 }
 
 /**
  * Fetch current reservoir pool elevation and release rate for a USACE PROJECT location.
- * Tries multiple TSID parameter variations and returns the first that has data.
+ *
+ * Uses a catalog-first strategy: discovers the actual TSIDs published for this
+ * location before fetching, so naming differences across offices are handled
+ * automatically. Converts metric units (m, cms) to imperial (ft, CFS).
  */
 export async function fetchReservoirData(
   locationId: string,
   office: string
 ): Promise<ReservoirData> {
-  const [poolResult, releaseResult] = await Promise.all([
-    tryParams(locationId, office, POOL_PARAMS),
-    tryParams(locationId, office, RELEASE_PARAMS),
+  const catalog = await fetchTsCatalog(locationId, office);
+
+  // Pick best pool elevation and release flow TSIDs
+  let bestPool:    TsCatalogEntry | null = null;
+  let bestRelease: TsCatalogEntry | null = null;
+  let bestPoolScore    = -1;
+  let bestReleaseScore = -1;
+
+  for (const entry of catalog) {
+    const ps = scorePoolTsid(entry.name, entry.interval);
+    if (ps > bestPoolScore) { bestPoolScore = ps; bestPool = entry; }
+
+    const rs = scoreReleaseTsid(entry.name, entry.interval);
+    if (rs > bestReleaseScore) { bestReleaseScore = rs; bestRelease = entry; }
+  }
+
+  // Fetch both in parallel
+  const [poolReading, releaseReading] = await Promise.all([
+    bestPool    ? fetchLatestTsValue(bestPool.name, office)    : Promise.resolve(null),
+    bestRelease ? fetchLatestTsValue(bestRelease.name, office) : Promise.resolve(null),
   ]);
 
   return {
-    poolElevationFt: poolResult?.value ?? null,
-    releaseCfs: releaseResult?.value ?? null,
-    poolTsid: poolResult?.tsid ?? null,
-    releaseTsid: releaseResult?.tsid ?? null,
+    poolElevationFt: poolReading && bestPool
+      ? toImperialElevation(poolReading.value, bestPool.units)
+      : null,
+    releaseCfs: releaseReading && bestRelease
+      ? toImperialFlow(releaseReading.value, bestRelease.units)
+      : null,
+    poolTsid:    bestPool?.name    ?? null,
+    releaseTsid: bestRelease?.name ?? null,
   };
 }
 

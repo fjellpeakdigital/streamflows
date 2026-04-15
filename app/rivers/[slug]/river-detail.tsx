@@ -31,6 +31,8 @@ import {
   formatTemperature,
 } from '@/lib/river-utils';
 import { calculateFlowEta } from '@/lib/flow-eta';
+import { interpretConditions } from '@/lib/conditions-interpreter';
+import { ConditionsSummaryCard } from '@/components/conditions-summary';
 import type { NWMForecastPoint } from '@/lib/nwm-forecast';
 import {
   Heart,
@@ -49,7 +51,7 @@ import {
   Thermometer,
   Gauge,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, differenceInHours } from 'date-fns';
 
 const MONTH_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -191,6 +193,18 @@ export function RiverDetail({ riverData }: { riverData: any }) {
 
   const status = current_condition?.status || 'low';
   const etaLabel = calculateFlowEta(conditions ?? [], optimal_flow_min, optimal_flow_max).label;
+
+  const interpretation = interpretConditions({
+    flow:                current_condition?.flow ?? null,
+    temperature:         current_condition?.temperature ?? null,
+    status:              current_condition?.status ?? null,
+    trend:               trend ?? null,
+    optimalMin:          optimal_flow_min,
+    optimalMax:          optimal_flow_max,
+    cwmsLocationKind:    cwms_location_kind ?? null,
+    reservoirReleaseCfs: reservoir_release_cfs ?? null,
+    reservoirPoolFt:     reservoir_pool_ft ?? null,
+  });
 
   const handleDeleteHatch = async (hatchId: string) => {
     if (!confirm('Delete this hatch?')) return;
@@ -367,6 +381,9 @@ export function RiverDetail({ riverData }: { riverData: any }) {
             </CardContent>
           </Card>
 
+          {/* Conditions interpretation */}
+          <ConditionsSummaryCard interpretation={interpretation} />
+
           {/* Current conditions */}
           <Card>
             <CardHeader className="pb-2 px-5 pt-5">
@@ -438,12 +455,24 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 ))}
               </div>
 
-              {current_condition && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
-                  <Clock className="h-3.5 w-3.5" />
-                  Updated {format(new Date(current_condition.timestamp), 'MMM d, yyyy h:mm a')}
-                </div>
-              )}
+              {current_condition && (() => {
+                const ts = new Date(current_condition.timestamp);
+                const hoursOld = differenceInHours(new Date(), ts);
+                const isStale = hoursOld >= 2;
+                return (
+                  <div className={cn(
+                    'flex items-center gap-1.5 text-xs mt-3',
+                    isStale ? 'text-amber-600 font-medium' : 'text-muted-foreground'
+                  )}>
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {isStale
+                        ? `Data from ${formatDistanceToNow(ts, { addSuffix: true })} — may not reflect current conditions`
+                        : `Updated ${format(ts, 'MMM d, h:mm a')}`}
+                    </span>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 

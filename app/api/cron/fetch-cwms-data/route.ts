@@ -22,6 +22,23 @@ import { fetchReservoirData } from '@/lib/cwms';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+const CWMS_BASE = 'https://cwms-data.usace.army.mil/cwms-data';
+
+const POOL_PARAMS = [
+  'Elev.Inst.1Hour.0.raw',
+  'Elev.Inst.15Minutes.0.raw',
+  'Elev-Pool.Inst.1Hour.0.raw',
+  'Elev-Pool.Inst.15Minutes.0.raw',
+  'Elev.Ave.1Hour.0.raw',
+];
+const RELEASE_PARAMS = [
+  'Flow-Out.Inst.1Hour.0.raw',
+  'Flow-Out.Inst.15Minutes.0.raw',
+  'Flow.Inst.1Hour.0.raw',
+  'Flow.Inst.15Minutes.0.raw',
+  'Flow-Out.Ave.1Hour.0.raw',
+];
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -32,6 +49,59 @@ export async function GET(request: Request) {
     querySecret === process.env.CRON_SECRET;
   if (process.env.CRON_SECRET && !validAuth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // ── Debug: inspect raw CWMS timeseries response for one location ────────────
+  // Usage: ?secret=...&inspect=TLD&office=NAE
+  // Also queries the timeseries catalog to discover what TSIDs actually exist.
+  const inspectId = searchParams.get('inspect');
+  const inspectOffice = searchParams.get('office');
+  if (inspectId && inspectOffice) {
+    // 1. Query the CWMS timeseries catalog to discover available TSIDs
+    const catalogUrl =
+      `${CWMS_BASE}/catalog/TIMESERIES` +
+      `?office=${encodeURIComponent(inspectOffice)}` +
+      `&like=${encodeURIComponent(inspectId + '.*')}` +
+      `&pageSize=50`;
+    let catalog: unknown = null;
+    try {
+      const catalogRes = await fetch(catalogUrl, {
+        cache: 'no-store',
+        headers: { Accept: '*/*' },
+      });
+      catalog = catalogRes.ok
+        ? await catalogRes.json()
+        : { _httpStatus: catalogRes.status, _url: catalogUrl };
+    } catch (err: any) {
+      catalog = { error: err.message };
+    }
+
+    // 2. Probe each candidate TSID
+    const end = new Date();
+    const begin = new Date(end.getTime() - 6 * 60 * 60 * 1000);
+    const probes: Record<string, unknown> = {};
+
+    for (const param of [...POOL_PARAMS, ...RELEASE_PARAMS]) {
+      const tsid = `${inspectId}.${param}`;
+      const url =
+        `${CWMS_BASE}/timeseries` +
+        `?name=${encodeURIComponent(tsid)}` +
+        `&office=${encodeURIComponent(inspectOffice)}` +
+        `&begin=${begin.toISOString()}` +
+        `&end=${end.toISOString()}`;
+      try {
+        const res = await fetch(url, {
+          cache: 'no-store',
+          headers: { Accept: '*/*' },
+        });
+        const body = res.ok ? await res.json() : { _httpStatus: res.status, _url: url };
+        probes[param] = { status: res.status, body };
+      } catch (err: any) {
+        probes[param] = { error: err.message, url };
+      }
+    }
+
+    return NextResponse.json({ location: inspectId, office: inspectOffice, catalog, probes });
   }
 
   const supabase = createServiceClient(
