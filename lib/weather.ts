@@ -27,9 +27,13 @@ export async function fetchWeatherForecast(
       `&daily=precipitation_sum,precipitation_probability_max` +
       `&forecast_days=${days}&timezone=auto`;
 
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(url, {
-      next: { revalidate: 3600 }, // cache for 1 hour
+      signal: controller.signal,
+      next: { revalidate: 3600 },
     });
+    clearTimeout(t);
 
     if (!res.ok) return null;
     const json = await res.json();

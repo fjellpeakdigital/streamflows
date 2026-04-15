@@ -14,7 +14,7 @@ const GAUGE_URL = (id: string) =>
 const REACH_FLOW_URL = (reachId: string, series: 'short_range' | 'medium_range') =>
   `https://api.water.noaa.gov/nwps/v1/reaches/${encodeURIComponent(reachId)}/streamflow?series=${series}`;
 
-async function fetchJson(url: string, timeoutMs = 8000): Promise<any | null> {
+async function fetchJson(url: string, timeoutMs = 3000): Promise<any | null> {
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
