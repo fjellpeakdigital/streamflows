@@ -134,13 +134,13 @@ export async function GET(request: Request) {
         .from('rivers')
         .select('*', { count: 'exact', head: true })
         .not('usgs_station_id', 'is', null)
-        .is('flood_stage', null);
+        .is('nwps_checked_at', null);
 
       const { data: stageRivers, error: stageErr } = await supabase
         .from('rivers')
         .select('id, name, usgs_station_id, nws_lid')
         .not('usgs_station_id', 'is', null)
-        .is('flood_stage', null)
+        .is('nwps_checked_at', null)
         .limit(stagesLimit);
       if (stageErr) throw new Error(stageErr.message);
 
@@ -154,27 +154,26 @@ export async function GET(request: Request) {
 
         const { nwsLid, stages } = await fetchGaugeData(river.usgs_station_id);
 
-        if (!stages && !nwsLid) { stagesNotFound++; return; }
+        const update: Record<string, unknown> = {
+          nwps_checked_at: new Date().toISOString(),
+        };
 
-        const update: Record<string, unknown> = {};
         if (stages) {
-          update.action_stage        = stages.action;
-          update.flood_stage         = stages.flood;
+          update.action_stage         = stages.action;
+          update.flood_stage          = stages.flood;
           update.moderate_flood_stage = stages.moderate;
-          update.major_flood_stage   = stages.major;
+          update.major_flood_stage    = stages.major;
         }
         if (nwsLid && !river.nws_lid) {
           update.nws_lid = nwsLid;
         }
-
-        if (Object.keys(update).length === 0) { stagesNotFound++; return; }
 
         const { error: upErr } = await supabase
           .from('rivers')
           .update(update)
           .eq('id', river.id);
 
-        if (upErr) { stagesNotFound++; return; }
+        if (upErr || (!stages && !nwsLid)) { stagesNotFound++; return; }
         if (stages) stagesPopulated++;
       });
 
