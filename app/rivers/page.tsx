@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
-import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
-import { getStatusDotColor, getStatusLabel, calculateStatus } from '@/lib/river-utils';
+import { RiverWithCondition } from '@/lib/types/database';
+import { calculateStatus } from '@/lib/river-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,53 +104,29 @@ async function getRivers() {
   return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user };
 }
 
-async function getStats(rivers: RiverWithCondition[]) {
-  const statusCounts: Record<RiverStatus, number> = {
-    optimal: 0, elevated: 0, high: 0, low: 0, ice_affected: 0, no_data: 0, unknown: 0,
-  };
-  rivers.forEach((river) => {
-    const status = river.current_condition?.status ?? 'unknown';
-    statusCounts[status as RiverStatus]++;
-  });
-  return { total: rivers.length, statusCounts };
+async function getOptimalCount(rivers: RiverWithCondition[]) {
+  return rivers.filter((r) => r.current_condition?.status === 'optimal').length;
 }
-
-const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'unknown'];
 
 export default async function RiversPage() {
   const { rivers, rosterRiverIds, isAuthenticated } = await getRivers();
-  const stats = await getStats(rivers);
+  const total = rivers.length;
+  const optimalCount = await getOptimalCount(rivers);
 
   return (
     <div className="container mx-auto px-4 py-8">
 
       {/* Page header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold mb-1">River Conditions</h1>
         <p className="text-muted-foreground text-sm">
-          Real-time flow data for {stats.total} New England rivers
+          {total} rivers tracked
+          {optimalCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-emerald-700 font-medium">
+              · {optimalCount} fishing well now
+            </span>
+          )}
         </p>
-      </div>
-
-      {/* Status summary bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">
-        {STATUS_ORDER.map((status) => {
-          const count = stats.statusCounts[status];
-          return (
-            <div
-              key={status}
-              className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3"
-            >
-              <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${getStatusDotColor(status)}`} />
-              <div className="min-w-0">
-                <div className="text-xl font-bold leading-tight">{count}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {getStatusLabel(status)}
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       <RiversList
