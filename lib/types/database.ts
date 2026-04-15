@@ -38,6 +38,16 @@ export interface River {
   latitude: number | null;
   longitude: number | null;
   nwm_reach_id: string | null;
+  /** NWS Location Identifier — used to fetch flood stage thresholds from NWPS */
+  nws_lid: string | null;
+  /** Gage height (ft) at which NWS issues an action statement */
+  action_stage: number | null;
+  /** Gage height (ft) at which minor flooding begins */
+  flood_stage: number | null;
+  /** Gage height (ft) at which moderate flooding begins */
+  moderate_flood_stage: number | null;
+  /** Gage height (ft) at which major flooding begins */
+  major_flood_stage: number | null;
   created_at: string;
   updated_at: string;
 }
