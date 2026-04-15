@@ -130,12 +130,11 @@ export async function GET(request: Request) {
     let stagesRemaining = 0;
 
     if (fetchStages) {
-      const { data: allNeedingStages, error: countErr } = await supabase
+      const { count: totalNeedingStages } = await supabase
         .from('rivers')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .not('usgs_station_id', 'is', null)
         .is('flood_stage', null);
-      if (countErr) throw new Error(countErr.message);
 
       const { data: stageRivers, error: stageErr } = await supabase
         .from('rivers')
@@ -146,7 +145,7 @@ export async function GET(request: Request) {
       if (stageErr) throw new Error(stageErr.message);
 
       const batch = stageRivers ?? [];
-      stagesRemaining = Math.max(0, (allNeedingStages as any)?.length ?? batch.length) - batch.length;
+      stagesRemaining = Math.max(0, (totalNeedingStages ?? 0) - batch.length);
 
       console.log(`[populate-nws-lids] Phase 2: ${batch.length} rivers, concurrency ${concurrency}`);
 
