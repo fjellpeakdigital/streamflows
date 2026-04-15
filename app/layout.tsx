@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { Sidebar } from "@/components/sidebar";
+import { MobileNav } from "@/components/mobile-nav";
 import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { cache } from "react";
@@ -174,7 +175,8 @@ export default async function RootLayout({
               upcomingTripCount={upcomingTripCount}
               userEmail={user?.email ?? null}
             />
-            <main className="min-h-screen bg-background md:ml-64">
+            <MobileNav activeAlertCount={activeAlertCount} />
+            <main className="min-h-screen bg-background md:ml-64 pb-16 md:pb-0">
               {children}
             </main>
           </>
