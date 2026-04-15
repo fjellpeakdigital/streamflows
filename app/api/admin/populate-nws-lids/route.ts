@@ -1,22 +1,23 @@
 /**
- * GET /api/admin/populate-nws-lids?secret=<CRON_SECRET>&limit=500&stages=true
- *
- * Two-phase admin route:
- *
- * Phase 1 — LID mapping (always runs):
- *   Downloads the NOAA HADS flat file once, parses it into a USGS ID → NWS LID
- *   map, then batch-updates rivers that have a usgs_station_id match but no
- *   nws_lid yet.
- *
- * Phase 2 — Flood stage fetch (runs when ?stages=true, default true):
- *   For every river that now has an nws_lid but is missing flood_stage data,
- *   calls the NWPS gauge endpoint to fetch action/flood/moderate/major stage
- *   thresholds and writes them back to the rivers row.
+ * GET /api/admin/populate-nws-lids
  *
  * Query params:
- *   secret  — must match CRON_SECRET env var
- *   limit   — max rivers to process in Phase 1 (default: all)
- *   stages  — "true" (default) to also fetch flood stage thresholds
+ *   secret       — must match CRON_SECRET env var
+ *   skip_hads    — "true" to skip Phase 1 (LID mapping); use on re-runs
+ *   stages       — "false" to skip Phase 2 (flood stage fetch); default true
+ *   limit        — max rivers to process in Phase 2 (default 500 per run)
+ *   concurrency  — parallel NWPS requests in Phase 2 (default 8)
+ *   inspect      — return raw NWPS response for a single USGS station ID (debug)
+ *
+ * Phase 1 — LID mapping (skippable with ?skip_hads=true):
+ *   Downloads the NOAA HADS flat file, matches rivers by USGS station ID,
+ *   writes nws_lid. Already ran — skip on subsequent invocations.
+ *
+ * Phase 2 — Flood stage fetch (concurrent):
+ *   Calls NWPS gauge API with USGS station IDs in parallel batches.
+ *   Writes action/flood/moderate/major stage thresholds. Also backfills
+ *   nws_lid from body.lid for rivers the HADS file missed.
+ *   Run multiple times with ?limit=500 until stages.remaining hits 0.
  */
 
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -25,6 +26,21 @@ import { fetchHadsMapping, fetchGaugeData } from '@/lib/nwps';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+
+/** Run up to `concurrency` async tasks at a time. */
+async function runConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
+}
 
 export async function GET(request: Request) {
   const startTime = Date.now();
@@ -39,22 +55,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Debug mode: return the raw NWPS gauge API response for a single LID so we
-  // can inspect the actual response shape without running the full pipeline.
-  // Usage: ?secret=...&inspect=CTLT2
-  const inspectLid = searchParams.get('inspect');
-  if (inspectLid) {
+  // Debug: return raw NWPS response for one USGS station ID.
+  // Usage: ?secret=...&inspect=01184000
+  const inspectId = searchParams.get('inspect');
+  if (inspectId) {
     const raw = await fetch(
-      `https://api.water.noaa.gov/nwps/v1/gauges/${encodeURIComponent(inspectLid)}`,
+      `https://api.water.noaa.gov/nwps/v1/gauges/${encodeURIComponent(inspectId)}`,
       { cache: 'no-store' }
     );
     const body = raw.ok ? await raw.json() : { error: `HTTP ${raw.status}` };
-    return NextResponse.json({ lid: inspectLid, status: raw.status, body });
+    return NextResponse.json({ id: inspectId, status: raw.status, body });
   }
 
-  const limitParam = Number(searchParams.get('limit') ?? '0');
-  const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 0;
-  const fetchStages = searchParams.get('stages') !== 'false'; // default true
+  const skipHads    = searchParams.get('skip_hads') === 'true';
+  const fetchStages = searchParams.get('stages') !== 'false';
+  const limitParam  = Number(searchParams.get('limit') ?? '500');
+  const stagesLimit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 500;
+  const concParam   = Number(searchParams.get('concurrency') ?? '8');
+  const concurrency = Number.isFinite(concParam) && concParam > 0 ? Math.min(concParam, 20) : 8;
 
   try {
     const supabase = createServiceClient(
@@ -62,132 +80,119 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // ── Phase 1: LID mapping ────────────────────────────────────────────────
+    // ── Phase 1: LID mapping (skip with ?skip_hads=true on re-runs) ──────────
 
-    console.log('[populate-nws-lids] Downloading HADS flat file…');
-    const hadsMap = await fetchHadsMapping();
-    if (!hadsMap) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to download HADS cross-reference file' },
-        { status: 502 }
-      );
-    }
-    console.log(`[populate-nws-lids] HADS file parsed — ${hadsMap.size} entries`);
-
-    // Fetch rivers that still need an NWS LID.
-    let rivQuery = supabase
-      .from('rivers')
-      .select('id, name, usgs_station_id')
-      .is('nws_lid', null)
-      .not('usgs_station_id', 'is', null);
-    if (limit > 0) rivQuery = rivQuery.limit(limit);
-
-    const { data: rivers, error: rivErr } = await rivQuery;
-    if (rivErr) throw new Error(rivErr.message);
-
+    let hadsSize = 0;
     let lidsPopulated = 0;
     let lidsNotFound = 0;
     const lidsNotFoundSamples: string[] = [];
 
-    for (const river of rivers ?? []) {
-      const nwsLid = hadsMap.get(river.usgs_station_id);
-      if (!nwsLid) {
-        lidsNotFound++;
-        if (lidsNotFoundSamples.length < 20) lidsNotFoundSamples.push(river.name);
-        continue;
+    if (!skipHads) {
+      console.log('[populate-nws-lids] Downloading HADS flat file…');
+      const hadsMap = await fetchHadsMapping();
+      if (!hadsMap) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to download HADS cross-reference file' },
+          { status: 502 }
+        );
       }
+      hadsSize = hadsMap.size;
+      console.log(`[populate-nws-lids] HADS parsed — ${hadsSize} entries`);
 
-      const { error: upErr } = await supabase
+      const { data: rivers, error: rivErr } = await supabase
         .from('rivers')
-        .update({ nws_lid: nwsLid })
-        .eq('id', river.id);
+        .select('id, name, usgs_station_id')
+        .is('nws_lid', null)
+        .not('usgs_station_id', 'is', null);
+      if (rivErr) throw new Error(rivErr.message);
 
-      if (upErr) {
-        lidsNotFound++;
-        continue;
+      for (const river of rivers ?? []) {
+        const nwsLid = hadsMap.get(river.usgs_station_id);
+        if (!nwsLid) {
+          lidsNotFound++;
+          if (lidsNotFoundSamples.length < 20) lidsNotFoundSamples.push(river.name);
+          continue;
+        }
+        const { error: upErr } = await supabase
+          .from('rivers')
+          .update({ nws_lid: nwsLid })
+          .eq('id', river.id);
+        if (upErr) { lidsNotFound++; continue; }
+        lidsPopulated++;
       }
-      lidsPopulated++;
+      console.log(`[populate-nws-lids] Phase 1 done — ${lidsPopulated} populated, ${lidsNotFound} unmatched`);
     }
 
-    console.log(
-      `[populate-nws-lids] Phase 1 done — ${lidsPopulated} LIDs populated, ${lidsNotFound} not matched`
-    );
-
-    // ── Phase 2: Flood stage fetch ──────────────────────────────────────────
+    // ── Phase 2: Flood stage fetch (concurrent) ───────────────────────────────
 
     let stagesPopulated = 0;
     let stagesNotFound = 0;
+    let stagesRemaining = 0;
 
     if (fetchStages) {
-      // Use USGS station IDs directly — the NWPS API accepts them and returns
-      // both the NWS LID (body.lid) and flood stages (body.flood.categories).
-      // This also backfills nws_lid for any river the HADS file missed.
+      const { data: allNeedingStages, error: countErr } = await supabase
+        .from('rivers')
+        .select('id', { count: 'exact', head: true })
+        .not('usgs_station_id', 'is', null)
+        .is('flood_stage', null);
+      if (countErr) throw new Error(countErr.message);
+
       const { data: stageRivers, error: stageErr } = await supabase
         .from('rivers')
         .select('id, name, usgs_station_id, nws_lid')
         .not('usgs_station_id', 'is', null)
-        .is('flood_stage', null);
-
+        .is('flood_stage', null)
+        .limit(stagesLimit);
       if (stageErr) throw new Error(stageErr.message);
 
-      for (const river of stageRivers ?? []) {
-        if (!river.usgs_station_id) continue;
+      const batch = stageRivers ?? [];
+      stagesRemaining = Math.max(0, (allNeedingStages as any)?.length ?? batch.length) - batch.length;
+
+      console.log(`[populate-nws-lids] Phase 2: ${batch.length} rivers, concurrency ${concurrency}`);
+
+      await runConcurrent(batch, concurrency, async (river) => {
+        if (!river.usgs_station_id) { stagesNotFound++; return; }
 
         const { nwsLid, stages } = await fetchGaugeData(river.usgs_station_id);
 
-        if (!stages && !nwsLid) {
-          stagesNotFound++;
-          continue;
-        }
+        if (!stages && !nwsLid) { stagesNotFound++; return; }
 
         const update: Record<string, unknown> = {};
         if (stages) {
-          update.action_stage = stages.action;
-          update.flood_stage = stages.flood;
+          update.action_stage        = stages.action;
+          update.flood_stage         = stages.flood;
           update.moderate_flood_stage = stages.moderate;
-          update.major_flood_stage = stages.major;
+          update.major_flood_stage   = stages.major;
         }
-        // Backfill nws_lid if the HADS phase missed it
         if (nwsLid && !river.nws_lid) {
           update.nws_lid = nwsLid;
         }
 
-        if (Object.keys(update).length === 0) {
-          stagesNotFound++;
-          continue;
-        }
+        if (Object.keys(update).length === 0) { stagesNotFound++; return; }
 
         const { error: upErr } = await supabase
           .from('rivers')
           .update(update)
           .eq('id', river.id);
 
-        if (upErr) {
-          stagesNotFound++;
-          continue;
-        }
+        if (upErr) { stagesNotFound++; return; }
         if (stages) stagesPopulated++;
-      }
+      });
 
-      console.log(
-        `[populate-nws-lids] Phase 2 done — ${stagesPopulated} stage sets populated, ${stagesNotFound} without stage data`
-      );
+      console.log(`[populate-nws-lids] Phase 2 done — ${stagesPopulated} populated, ${stagesNotFound} no data`);
     }
 
     const duration = Date.now() - startTime;
 
     return NextResponse.json({
       success: true,
-      hads_entries: hadsMap.size,
-      lids: {
-        scanned: rivers?.length ?? 0,
-        populated: lidsPopulated,
-        not_matched: lidsNotFound,
-        not_matched_samples: lidsNotFoundSamples,
-      },
+      ...(skipHads ? { phase1: 'skipped' } : {
+        hads_entries: hadsSize,
+        lids: { populated: lidsPopulated, not_matched: lidsNotFound, samples: lidsNotFoundSamples },
+      }),
       stages: fetchStages
-        ? { populated: stagesPopulated, not_found: stagesNotFound }
-        : 'skipped (pass ?stages=true to enable)',
+        ? { populated: stagesPopulated, no_data: stagesNotFound, remaining: stagesRemaining }
+        : 'skipped',
       duration_ms: duration,
     });
   } catch (err: any) {
