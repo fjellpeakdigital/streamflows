@@ -230,7 +230,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
           role="status"
           aria-live="polite"
           className={`
-            fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3
+            fixed bottom-20 right-5 md:bottom-5 z-50 flex items-center gap-3 px-4 py-3
             rounded-xl shadow-lg text-sm font-medium border
             ${toast.type === 'success'
               ? 'bg-emerald-600 border-emerald-500 text-white'

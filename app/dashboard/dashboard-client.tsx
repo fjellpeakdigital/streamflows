@@ -435,20 +435,20 @@ export function GuideDashboard({
     <div className="container mx-auto px-4 py-6 max-w-6xl">
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-b border-border mb-4">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-lg sm:text-xl font-bold whitespace-nowrap">
+          <h1 className="text-base sm:text-xl font-bold truncate min-w-0 shrink">
             Today's conditions
             <span className="hidden sm:inline text-muted-foreground font-normal">
               {' '}— {format(new Date(), 'EEE MMM d')}
             </span>
           </h1>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
               <button
                 type="button"
                 onClick={() => setScope('mine')}
                 className={cn(
-                  'px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
+                  'px-2.5 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
                   scope === 'mine'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -460,22 +460,23 @@ export function GuideDashboard({
                 type="button"
                 onClick={() => setScope('ne')}
                 className={cn(
-                  'px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
+                  'px-2.5 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors',
                   scope === 'ne'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                New England
+                <span className="sm:hidden">NE</span>
+                <span className="hidden sm:inline">New England</span>
               </button>
             </div>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               title="Filter (coming soon)"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filter
+              <span className="hidden sm:inline">Filter</span>
             </button>
           </div>
         </div>

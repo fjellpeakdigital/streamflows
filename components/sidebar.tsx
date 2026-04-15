@@ -10,7 +10,7 @@ import {
   BookOpenText,
   CalendarDays,
   CalendarRange,
-  LineChart,
+  Map,
   LogOut,
   Plus,
   Search,
@@ -31,7 +31,7 @@ interface SidebarProps {
 
 const toolLinks = [
   { href: '/hatches', label: 'Hatch calendar', icon: BookOpenText },
-  { href: '/rivers', label: 'Flow history', icon: LineChart },
+  { href: '/rivers', label: 'Browse rivers', icon: Map },
   { href: '/notes', label: 'Client notes', icon: StickyNote },
   { href: '/alerts', label: 'Alert manager', icon: Bell },
 ];
