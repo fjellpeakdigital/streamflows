@@ -52,11 +52,14 @@ export default async function RootLayout({
   const isAuthenticated = user !== null;
   const pathname = (await headers()).get('x-pathname') ?? '/';
   const showSidebar = isAuthenticated && pathname !== '/';
+  const isStandalone = pathname === '/beta';
 
   return (
     <html lang="en">
       <body className={`${openSans.variable} font-sans antialiased`}>
-        {showSidebar ? (
+        {isStandalone ? (
+          <>{children}</>
+        ) : showSidebar ? (
           <>
             <Suspense fallback={
               <aside className="hidden md:flex fixed top-0 left-0 bottom-0 w-64 flex-col border-r border-border bg-white">
