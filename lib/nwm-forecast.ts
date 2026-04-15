@@ -73,7 +73,16 @@ export async function fetchNWMForecast(
 ): Promise<NWMForecast | null> {
   const reachId = await resolveNWMReachId(usgsStationId);
   if (!reachId) return null;
+  return fetchNWMForecastByReachId(reachId);
+}
 
+/**
+ * Fetch NWM forecast using a stored reach ID directly, without needing a
+ * USGS station ID. Used for ungauged rivers that have a known NWM reach ID.
+ */
+export async function fetchNWMForecastByReachId(
+  reachId: string
+): Promise<NWMForecast | null> {
   const [shortBody, mediumBody] = await Promise.all([
     fetchJson(REACH_FLOW_URL(reachId, 'short_range')),
     fetchJson(REACH_FLOW_URL(reachId, 'medium_range')),

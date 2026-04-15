@@ -4,7 +4,7 @@ import { fetchWeatherForecast } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
 import { calculateStatus } from '@/lib/river-utils';
 import { fetchHistoricalFlow } from '@/lib/usgs-historical';
-import { fetchNWMForecast } from '@/lib/nwm-forecast';
+import { fetchNWMForecast, fetchNWMForecastByReachId } from '@/lib/nwm-forecast';
 import { RiverDetail } from './river-detail';
 
 export const dynamic = 'force-dynamic';
@@ -90,7 +90,10 @@ async function getRiver(slug: string) {
             ? fetchNWMForecast(river.usgs_station_id)
             : Promise.resolve(null),
         ])
-      : Promise.resolve([null, null, null]),
+      // Ungauged river: no historical data, but fetch NWM if reach ID is known
+      : river.nwm_reach_id
+        ? Promise.all([null, null, fetchNWMForecastByReachId(river.nwm_reach_id)])
+        : Promise.resolve([null, null, null]),
   ]);
 
   const user = authRes.data.user;

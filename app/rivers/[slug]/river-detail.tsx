@@ -50,6 +50,8 @@ import {
   Waves,
   Thermometer,
   Gauge,
+  CloudRain,
+  BarChart3,
 } from 'lucide-react';
 import { format, formatDistanceToNow, differenceInHours } from 'date-fns';
 
@@ -193,6 +195,13 @@ export function RiverDetail({ riverData }: { riverData: any }) {
 
   const status = current_condition?.status || 'low';
   const etaLabel = calculateFlowEta(conditions ?? [], optimal_flow_min, optimal_flow_max).label;
+
+  const isUngauged = !usgs_station_id;
+  // For ungauged rivers, use the nearest NWM short-range point as an estimated flow
+  const nwmEstimatedFlow: number | null =
+    isUngauged && nwmForecast && nwmForecast.shortRange.length > 0
+      ? nwmForecast.shortRange[0].flow
+      : null;
 
   const interpretation = interpretConditions({
     flow:                current_condition?.flow ?? null,
@@ -359,25 +368,37 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{description}</p>
               )}
 
-              <div className="flex items-center gap-3 mt-4 flex-wrap">
-                <Badge className={`${getStatusColor(status)} px-3 py-1 text-sm font-semibold`}>
-                  {getStatusLabel(status)}
-                </Badge>
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <TrendIcon trend={trend} />
-                  <span className="capitalize">{trend}</span>
+              {isUngauged ? (
+                <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                  <BarChart3 className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">No USGS gauge on this water.</span>
+                    {nwmEstimatedFlow !== null
+                      ? ` Flow estimated at ${formatFlow(nwmEstimatedFlow)} from NOAA modeled data — not a measured reading.`
+                      : ' Conditions are based on recent check-ins and precipitation data.'}
+                  </div>
                 </div>
-                {eta?.label && (
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border ${
-                    ['rising_to_optimal','falling_to_optimal','optimal'].includes(eta.type)
-                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                      : 'text-amber-700 bg-amber-50 border-amber-200'
-                  }`}>
-                    <Clock className="h-3 w-3" />
-                    {eta.label}
-                  </span>
-                )}
-              </div>
+              ) : (
+                <div className="flex items-center gap-3 mt-4 flex-wrap">
+                  <Badge className={`${getStatusColor(status)} px-3 py-1 text-sm font-semibold`}>
+                    {getStatusLabel(status)}
+                  </Badge>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <TrendIcon trend={trend} />
+                    <span className="capitalize">{trend}</span>
+                  </div>
+                  {eta?.label && (
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border ${
+                      ['rising_to_optimal','falling_to_optimal','optimal'].includes(eta.type)
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        : 'text-amber-700 bg-amber-50 border-amber-200'
+                    }`}>
+                      <Clock className="h-3 w-3" />
+                      {eta.label}
+                    </span>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -387,10 +408,17 @@ export function RiverDetail({ riverData }: { riverData: any }) {
           {/* Current conditions */}
           <Card>
             <CardHeader className="pb-2 px-5 pt-5">
-              <CardTitle className="text-base font-semibold">Current Conditions</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                {isUngauged ? 'Estimated Conditions' : 'Current Conditions'}
+              </CardTitle>
+              {isUngauged && nwmEstimatedFlow !== null && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  NOAA National Water Model · modeled, not measured
+                </p>
+              )}
             </CardHeader>
             <CardContent className="px-5 pb-5">
-              {etaLabel && !nwmForecast && (
+              {etaLabel && !nwmForecast && !isUngauged && (
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
                   <Clock className="h-4 w-4" />
                   {etaLabel}
@@ -400,8 +428,10 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 {[
                   {
                     icon: Waves,
-                    label: 'Flow',
-                    value: formatFlow(current_condition?.flow ?? null),
+                    label: isUngauged ? 'Est. Flow' : 'Flow',
+                    value: isUngauged
+                      ? (nwmEstimatedFlow !== null ? formatFlow(nwmEstimatedFlow) : 'No model data')
+                      : formatFlow(current_condition?.flow ?? null),
                     sub: optimal_flow_min && optimal_flow_max
                       ? `Optimal ${optimal_flow_min}–${optimal_flow_max} CFS`
                       : null,
@@ -455,7 +485,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 ))}
               </div>
 
-              {current_condition && (() => {
+              {!isUngauged && current_condition && (() => {
                 const ts = new Date(current_condition.timestamp);
                 const hoursOld = differenceInHours(new Date(), ts);
                 const isStale = hoursOld >= 2;
@@ -473,6 +503,38 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                   </div>
                 );
               })()}
+
+              {/* Precipitation context — shown for all rivers when weather data available */}
+              {weather && (
+                <div className={cn(
+                  'mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
+                  (() => {
+                    const mm = weather.recentPrecipMm ?? 0;
+                    const inches = mm / 25.4;
+                    if (inches >= 2) return 'bg-blue-50 border border-blue-200 text-blue-800';
+                    if (inches >= 0.5) return 'bg-sky-50 border border-sky-200 text-sky-800';
+                    return 'bg-secondary text-muted-foreground';
+                  })()
+                )}>
+                  <CloudRain className="h-4 w-4 shrink-0" />
+                  <span>
+                    {(() => {
+                      const mm = weather.recentPrecipMm ?? 0;
+                      const inches = (mm / 25.4).toFixed(2).replace(/\.?0+$/, '') || '0';
+                      const inchesNum = mm / 25.4;
+                      const context = inchesNum >= 2
+                        ? 'Expect elevated flows and reduced clarity.'
+                        : inchesNum >= 0.5
+                          ? 'Flows may be slightly elevated.'
+                          : 'Dry conditions — flows likely stable.';
+                      return `${inches} in over past 3 days. ${context}`;
+                    })()}
+                    {weather.hasRain && (
+                      <span className="ml-1 font-medium">{weather.summary}.</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -744,8 +806,48 @@ export function RiverDetail({ riverData }: { riverData: any }) {
             </Card>
           )}
 
-          {/* 24-hour chart */}
-          <Card>
+          {/* Ungauged: surface most recent check-in prominently */}
+          {isUngauged && checkins.length > 0 && (() => {
+            const latest = checkins[0];
+            return (
+              <Card className="border-l-4 border-l-amber-400">
+                <CardHeader className="pb-2 px-5 pt-5">
+                  <CardTitle className="text-base font-semibold">Last Reported Conditions</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Most recent trip report — no gauge to compare
+                  </p>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Fished</span>
+                    <span className="font-semibold">
+                      {format(new Date(latest.fished_at), 'MMM d, yyyy')}
+                    </span>
+                  </div>
+                  {latest.conditions_rating && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Rating</span>
+                      <span className="font-semibold">{latest.conditions_rating}/5</span>
+                    </div>
+                  )}
+                  {latest.flow_confirmed && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Flow confirmed</span>
+                      <span className="font-semibold">{formatFlow(latest.flow_confirmed)}</span>
+                    </div>
+                  )}
+                  {latest.notes && (
+                    <p className="text-muted-foreground pt-1 border-t border-border">
+                      {latest.notes}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* 24-hour chart — hidden for ungauged rivers (no data to show) */}
+          {!isUngauged && <Card>
             <CardHeader className="pb-2 px-5 pt-5">
               <CardTitle className="text-base font-semibold">24-Hour Flow Chart</CardTitle>
             </CardHeader>
@@ -802,7 +904,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Guide notes */}
           {user && (
