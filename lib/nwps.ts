@@ -3,10 +3,18 @@
  *
  * Two responsibilities:
  *  1. Parse the HADS flat file to build a USGS station ID → NWS LID mapping.
- *  2. Fetch flood stage thresholds for a gauge from the NWPS gauge API.
+ *  2. Fetch flood stage thresholds and NWS LID from the NWPS gauge API using
+ *     a USGS station ID (the API accepts USGS IDs directly).
  *
  * HADS cross-reference: https://hads.ncep.noaa.gov/USGS/ALL_USGS-HADS_SITES.txt
- * NWPS gauge API:        https://api.water.noaa.gov/nwps/v1/gauges/{lid}
+ * NWPS gauge API:        https://api.water.noaa.gov/nwps/v1/gauges/{usgsStationId}
+ *
+ * Actual response shape (confirmed against live API):
+ *   body.lid                              — NWS Location ID (e.g. "TMVC3")
+ *   body.flood.categories.action.stage   — action stage (ft)
+ *   body.flood.categories.minor.stage    — flood/minor stage (ft)
+ *   body.flood.categories.moderate.stage — moderate flood stage (ft)
+ *   body.flood.categories.major.stage    — major flood stage (ft)
  */
 
 export interface FloodStages {
@@ -14,6 +22,12 @@ export interface FloodStages {
   flood: number | null;
   moderate: number | null;
   major: number | null;
+}
+
+export interface GaugeData {
+  /** NWS Location ID extracted from the NWPS response (e.g. "TMVC3") */
+  nwsLid: string | null;
+  stages: FloodStages | null;
 }
 
 const NWPS_BASE = 'https://api.water.noaa.gov/nwps/v1';
@@ -35,7 +49,9 @@ async function fetchJson(url: string, timeoutMs = 10_000): Promise<any | null> {
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === '' || v === 'NaN') return null;
   const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? n : null;
+  // Treat NOAA's -9999 sentinel as missing
+  if (!Number.isFinite(n) || n <= -9999) return null;
+  return n;
 }
 
 /**
@@ -82,33 +98,50 @@ export async function fetchHadsMapping(
 }
 
 /**
- * Fetch NWS flood stage thresholds for a gauge by its NWS LID.
+ * Fetch gauge metadata from the NWPS API using a USGS station ID.
  *
- * The NWPS gauge endpoint returns stage thresholds nested under various keys
- * depending on API version. This function checks the common shapes defensively.
- *
- * Returns null if the gauge has no stage thresholds or the request fails.
+ * Returns the NWS LID (from body.lid) and flood stage thresholds
+ * (from body.flood.categories). Either may be null if the gauge has no
+ * NWS designation or no published flood stages.
  */
-export async function fetchFloodStages(nwsLid: string): Promise<FloodStages | null> {
+export async function fetchGaugeData(usgsStationId: string): Promise<GaugeData> {
   const body = await fetchJson(
-    `${NWPS_BASE}/gauges/${encodeURIComponent(nwsLid)}`,
+    `${NWPS_BASE}/gauges/${encodeURIComponent(usgsStationId)}`,
     10_000
   );
-  if (!body || typeof body !== 'object') return null;
 
-  // Stage thresholds may be nested under `flood`, `floodStages`, `stages`,
-  // or as flat top-level fields — check all common shapes.
-  const src = body.flood ?? body.floodStages ?? body.stages ?? body;
-
-  const action   = toNum(src.action   ?? src.actionStage   ?? body.action   ?? null);
-  const flood    = toNum(src.flood    ?? src.floodStage    ?? body.flood    ?? null);
-  const moderate = toNum(src.moderate ?? src.moderateFloodStage ?? body.moderate ?? null);
-  const major    = toNum(src.major    ?? src.majorFloodStage    ?? body.major    ?? null);
-
-  // Only return a result if at least one threshold is present.
-  if (action === null && flood === null && moderate === null && major === null) {
-    return null;
+  if (!body || typeof body !== 'object') {
+    return { nwsLid: null, stages: null };
   }
 
-  return { action, flood, moderate, major };
+  // NWS LID lives at body.lid
+  const nwsLid = typeof body.lid === 'string' && body.lid.length > 0
+    ? body.lid
+    : null;
+
+  // Flood stages live at body.flood.categories.{action|minor|moderate|major}.stage
+  const cats = body?.flood?.categories;
+  if (!cats || typeof cats !== 'object') {
+    return { nwsLid, stages: null };
+  }
+
+  const action   = toNum(cats.action?.stage   ?? null);
+  const flood    = toNum(cats.minor?.stage    ?? null); // NOAA calls this "minor"
+  const moderate = toNum(cats.moderate?.stage ?? null);
+  const major    = toNum(cats.major?.stage    ?? null);
+
+  const stages: FloodStages | null =
+    action !== null || flood !== null || moderate !== null || major !== null
+      ? { action, flood, moderate, major }
+      : null;
+
+  return { nwsLid, stages };
+}
+
+/**
+ * Convenience wrapper — returns only flood stages for a USGS station ID.
+ */
+export async function fetchFloodStages(usgsStationId: string): Promise<FloodStages | null> {
+  const { stages } = await fetchGaugeData(usgsStationId);
+  return stages;
 }

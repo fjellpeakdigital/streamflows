@@ -21,7 +21,7 @@
 
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { fetchHadsMapping, fetchFloodStages } from '@/lib/nwps';
+import { fetchHadsMapping, fetchGaugeData } from '@/lib/nwps';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -119,39 +119,54 @@ export async function GET(request: Request) {
     let stagesNotFound = 0;
 
     if (fetchStages) {
-      // Rivers that have an nws_lid but no flood_stage data yet.
+      // Use USGS station IDs directly — the NWPS API accepts them and returns
+      // both the NWS LID (body.lid) and flood stages (body.flood.categories).
+      // This also backfills nws_lid for any river the HADS file missed.
       const { data: stageRivers, error: stageErr } = await supabase
         .from('rivers')
-        .select('id, name, nws_lid')
-        .not('nws_lid', 'is', null)
+        .select('id, name, usgs_station_id, nws_lid')
+        .not('usgs_station_id', 'is', null)
         .is('flood_stage', null);
 
       if (stageErr) throw new Error(stageErr.message);
 
       for (const river of stageRivers ?? []) {
-        if (!river.nws_lid) continue;
+        if (!river.usgs_station_id) continue;
 
-        const stages = await fetchFloodStages(river.nws_lid);
-        if (!stages) {
+        const { nwsLid, stages } = await fetchGaugeData(river.usgs_station_id);
+
+        if (!stages && !nwsLid) {
+          stagesNotFound++;
+          continue;
+        }
+
+        const update: Record<string, unknown> = {};
+        if (stages) {
+          update.action_stage = stages.action;
+          update.flood_stage = stages.flood;
+          update.moderate_flood_stage = stages.moderate;
+          update.major_flood_stage = stages.major;
+        }
+        // Backfill nws_lid if the HADS phase missed it
+        if (nwsLid && !river.nws_lid) {
+          update.nws_lid = nwsLid;
+        }
+
+        if (Object.keys(update).length === 0) {
           stagesNotFound++;
           continue;
         }
 
         const { error: upErr } = await supabase
           .from('rivers')
-          .update({
-            action_stage: stages.action,
-            flood_stage: stages.flood,
-            moderate_flood_stage: stages.moderate,
-            major_flood_stage: stages.major,
-          })
+          .update(update)
           .eq('id', river.id);
 
         if (upErr) {
           stagesNotFound++;
           continue;
         }
-        stagesPopulated++;
+        if (stages) stagesPopulated++;
       }
 
       console.log(
