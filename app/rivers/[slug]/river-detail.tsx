@@ -31,6 +31,8 @@ import {
   formatTemperature,
 } from '@/lib/river-utils';
 import { calculateFlowEta } from '@/lib/flow-eta';
+import { interpretConditions } from '@/lib/conditions-interpreter';
+import { ConditionsSummaryCard } from '@/components/conditions-summary';
 import type { NWMForecastPoint } from '@/lib/nwm-forecast';
 import {
   Heart,
@@ -191,6 +193,18 @@ export function RiverDetail({ riverData }: { riverData: any }) {
 
   const status = current_condition?.status || 'low';
   const etaLabel = calculateFlowEta(conditions ?? [], optimal_flow_min, optimal_flow_max).label;
+
+  const interpretation = interpretConditions({
+    flow:                current_condition?.flow ?? null,
+    temperature:         current_condition?.temperature ?? null,
+    status:              current_condition?.status ?? null,
+    trend:               trend ?? null,
+    optimalMin:          optimal_flow_min,
+    optimalMax:          optimal_flow_max,
+    cwmsLocationKind:    cwms_location_kind ?? null,
+    reservoirReleaseCfs: reservoir_release_cfs ?? null,
+    reservoirPoolFt:     reservoir_pool_ft ?? null,
+  });
 
   const handleDeleteHatch = async (hatchId: string) => {
     if (!confirm('Delete this hatch?')) return;
@@ -366,6 +380,9 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Conditions interpretation */}
+          <ConditionsSummaryCard interpretation={interpretation} />
 
           {/* Current conditions */}
           <Card>
