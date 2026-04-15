@@ -135,6 +135,15 @@ export async function GET(request: Request) {
       } else {
         console.log(`[cron:daily] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
       }
+
+      // Keep latest_conditions in sync — one row per river, updated in-place
+      const { error: upsertError } = await supabase.from('latest_conditions').upsert(
+        inserts.map((row) => ({ ...row, updated_at: new Date().toISOString() })),
+        { onConflict: 'river_id' }
+      );
+      if (upsertError) {
+        console.error(`[cron:daily] latest_conditions upsert failed: ${upsertError.message}`);
+      }
     }
 
     const totalTime = Date.now() - startTime;

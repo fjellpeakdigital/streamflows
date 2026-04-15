@@ -8,63 +8,54 @@ export const dynamic = 'force-dynamic';
 async function getRivers() {
   const supabase = await createClient();
 
-  const { data: rivers, error: riversError } = await supabase
-    .from('rivers')
-    .select('*')
-    .order('name')
-    .limit(5000);
-
-  if (riversError) {
-    console.error('Error fetching rivers:', riversError);
-    return { rivers: [], rosterRiverIds: [], isAuthenticated: false };
-  }
-
-  const { data: conditions } = await supabase
-    .from('conditions')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(10000);
-
-  const { data: species } = await supabase
-    .from('river_species')
-    .select('*')
-    .limit(10000);
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let favorites: any[] = [];
-  let rosterRiverIds: string[] = [];
-  if (user) {
-    const { data: favData } = await supabase
-      .from('user_favorites')
-      .select('river_id')
-      .eq('user_id', user.id);
-    favorites = favData || [];
-
-    const { data: rosterData } = await supabase
-      .from('user_roster')
-      .select('river_id')
-      .eq('user_id', user.id)
-      .eq('archived', false);
-    rosterRiverIds = (rosterData || []).map((r: any) => r.river_id);
-  }
-
-  // Fetch all public check-ins from the last 7 days in one query
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const { data: recentCheckins } = await supabase
-    .from('river_checkins')
-    .select('river_id, conditions_rating')
-    .eq('is_public', true)
-    .gte('fished_at', sevenDaysAgo.toISOString());
+  // All independent queries run in parallel.
+  // latest_conditions has one row per river (≤1,500 rows) instead of the
+  // previous conditions fetch that pulled up to 10,000 rows.
+  const [
+    riversRes,
+    latestCondsRes,
+    speciesRes,
+    authRes,
+    checkinsRes,
+  ] = await Promise.all([
+    supabase.from('rivers').select('*').order('name').limit(5000),
+    supabase.from('latest_conditions').select('*'),
+    supabase.from('river_species').select('*').limit(10000),
+    supabase.auth.getUser(),
+    supabase
+      .from('river_checkins')
+      .select('river_id, conditions_rating')
+      .eq('is_public', true)
+      .gte('fished_at', sevenDaysAgo.toISOString()),
+  ]);
 
-  // Aggregate: score each rating, average per river → back to label
+  if (riversRes.error) {
+    console.error('Error fetching rivers:', riversRes.error);
+    return { rivers: [], rosterRiverIds: [], isAuthenticated: false };
+  }
+
+  const rivers = riversRes.data;
+  const user = authRes.data.user ?? null;
+
+  // Build O(1) lookup maps
+  const condMap = new Map<string, any>();
+  for (const c of latestCondsRes.data ?? []) condMap.set(c.river_id, c);
+
+  const speciesMap = new Map<string, any[]>();
+  for (const s of speciesRes.data ?? []) {
+    const list = speciesMap.get(s.river_id) ?? [];
+    list.push(s);
+    speciesMap.set(s.river_id, list);
+  }
+
+  // Aggregate check-in ratings per river
   const SCORE: Record<string, number> = { poor: 1, fair: 2, good: 3, excellent: 4 };
   const LABEL: string[] = ['poor', 'poor', 'fair', 'good', 'excellent']; // index 0 unused
-
   const checkinMap = new Map<string, { total: number; count: number }>();
-  for (const c of recentCheckins ?? []) {
+  for (const c of checkinsRes.data ?? []) {
     const score = SCORE[c.conditions_rating];
     if (!score) continue;
     const entry = checkinMap.get(c.river_id) ?? { total: 0, count: 0 };
@@ -73,15 +64,24 @@ async function getRivers() {
     checkinMap.set(c.river_id, entry);
   }
 
-  const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
-    const riverConditions = conditions?.filter((c) => c.river_id === river.id) || [];
-    const currentCondition = riverConditions[0];
-    const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
-    const trend = currentCondition?.trend ?? 'unknown';
-    const is_favorite = favorites.some((f) => f.river_id === river.id);
+  // User-specific data (roster + favorites) — only fetched when authed
+  let favorites: any[] = [];
+  let rosterRiverIds: string[] = [];
+  if (user) {
+    const [favRes, rosterRes] = await Promise.all([
+      supabase.from('user_favorites').select('river_id').eq('user_id', user.id),
+      supabase.from('user_roster').select('river_id').eq('user_id', user.id).eq('archived', false),
+    ]);
+    favorites = favRes.data ?? [];
+    rosterRiverIds = (rosterRes.data ?? []).map((r: any) => r.river_id);
+  }
 
-    // Always recalculate status when flow is absent — the stored value may be stale.
-    // Also recalculate when status is missing entirely.
+  const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
+    const currentCondition = condMap.get(river.id) ?? null;
+    const riverSpecies = speciesMap.get(river.id) ?? [];
+    const trend = currentCondition?.trend ?? 'unknown';
+    const is_favorite = favorites.some((f: any) => f.river_id === river.id);
+
     if (currentCondition) {
       const flowAbsent = currentCondition.flow === null || currentCondition.flow <= -999000;
       if (!currentCondition.status || flowAbsent) {
