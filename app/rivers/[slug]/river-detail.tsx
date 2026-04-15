@@ -171,6 +171,8 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     id, name, region, description, usgs_station_id,
     latitude, longitude, optimal_flow_min, optimal_flow_max,
     action_stage, flood_stage, moderate_flood_stage, major_flood_stage,
+    cwms_location_id, cwms_office, cwms_location_kind,
+    reservoir_pool_ft, reservoir_release_cfs, reservoir_updated_at,
     current_condition, conditions, species, is_favorite, user_note, trend, user,
     checkins: initialCheckins = [],
     eta, weather,
@@ -444,6 +446,57 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               )}
             </CardContent>
           </Card>
+
+          {/* Reservoir / dam panel — PROJECT rivers only */}
+          {cwms_location_kind === 'PROJECT' && cwms_location_id && (
+            <Card>
+              <CardHeader className="pb-2 px-5 pt-5">
+                <CardTitle className="text-base font-semibold">Dam / Reservoir</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  USACE {cwms_office} · {cwms_location_id}
+                </p>
+              </CardHeader>
+              <CardContent className="px-5 pb-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-secondary rounded-xl px-3 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Waves className="h-3.5 w-3.5" />
+                      Pool Elevation
+                    </div>
+                    <div className="text-xl font-bold">
+                      {reservoir_pool_ft != null
+                        ? `${reservoir_pool_ft.toFixed(1)} ft`
+                        : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">NGVD</div>
+                  </div>
+                  <div className="bg-secondary rounded-xl px-3 py-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Gauge className="h-3.5 w-3.5" />
+                      Release Rate
+                    </div>
+                    <div className="text-xl font-bold">
+                      {reservoir_release_cfs != null
+                        ? formatFlow(reservoir_release_cfs)
+                        : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">outflow</div>
+                  </div>
+                </div>
+                {reservoir_updated_at && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
+                    <Clock className="h-3.5 w-3.5" />
+                    Updated {format(new Date(reservoir_updated_at), 'MMM d, yyyy h:mm a')}
+                  </div>
+                )}
+                {!reservoir_updated_at && (
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Reservoir data fetched hourly — check back soon.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Historical flows */}
           {(historical_last_year || historical_two_years_ago) && (
