@@ -39,6 +39,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Debug mode: return the raw NWPS gauge API response for a single LID so we
+  // can inspect the actual response shape without running the full pipeline.
+  // Usage: ?secret=...&inspect=CTLT2
+  const inspectLid = searchParams.get('inspect');
+  if (inspectLid) {
+    const raw = await fetch(
+      `https://api.water.noaa.gov/nwps/v1/gauges/${encodeURIComponent(inspectLid)}`,
+      { cache: 'no-store' }
+    );
+    const body = raw.ok ? await raw.json() : { error: `HTTP ${raw.status}` };
+    return NextResponse.json({ lid: inspectLid, status: raw.status, body });
+  }
+
   const limitParam = Number(searchParams.get('limit') ?? '0');
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 0;
   const fetchStages = searchParams.get('stages') !== 'false'; // default true
