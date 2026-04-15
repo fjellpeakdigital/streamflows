@@ -53,9 +53,30 @@ export async function GET(request: Request) {
 
   // ── Debug: inspect raw CWMS timeseries response for one location ────────────
   // Usage: ?secret=...&inspect=TLD&office=NAE
+  // Also queries the timeseries catalog to discover what TSIDs actually exist.
   const inspectId = searchParams.get('inspect');
   const inspectOffice = searchParams.get('office');
   if (inspectId && inspectOffice) {
+    // 1. Query the CWMS timeseries catalog to discover available TSIDs
+    const catalogUrl =
+      `${CWMS_BASE}/catalog/TIMESERIES` +
+      `?office=${encodeURIComponent(inspectOffice)}` +
+      `&like=${encodeURIComponent(inspectId + '.*')}` +
+      `&pageSize=50`;
+    let catalog: unknown = null;
+    try {
+      const catalogRes = await fetch(catalogUrl, {
+        cache: 'no-store',
+        headers: { Accept: '*/*' },
+      });
+      catalog = catalogRes.ok
+        ? await catalogRes.json()
+        : { _httpStatus: catalogRes.status, _url: catalogUrl };
+    } catch (err: any) {
+      catalog = { error: err.message };
+    }
+
+    // 2. Probe each candidate TSID
     const end = new Date();
     const begin = new Date(end.getTime() - 6 * 60 * 60 * 1000);
     const probes: Record<string, unknown> = {};
@@ -67,8 +88,7 @@ export async function GET(request: Request) {
         `?name=${encodeURIComponent(tsid)}` +
         `&office=${encodeURIComponent(inspectOffice)}` +
         `&begin=${begin.toISOString()}` +
-        `&end=${end.toISOString()}` +
-        `&format=json`;
+        `&end=${end.toISOString()}`;
       try {
         const res = await fetch(url, {
           cache: 'no-store',
@@ -81,7 +101,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ location: inspectId, office: inspectOffice, probes });
+    return NextResponse.json({ location: inspectId, office: inspectOffice, catalog, probes });
   }
 
   const supabase = createServiceClient(
