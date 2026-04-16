@@ -156,7 +156,7 @@ async function getRiver(slug: string) {
   }
 
   const trend = currentCondition?.trend ?? 'unknown';
-  const eta   = calculateFlowEta(allConditions, river.optimal_flow_min, river.optimal_flow_max);
+  let eta     = calculateFlowEta(allConditions, river.optimal_flow_min, river.optimal_flow_max);
 
   // ── 5. Checkins ───────────────────────────────────────────────────────────────
   const checkins = (checkinsRawRes.data ?? []).map((c: any) => ({
@@ -167,6 +167,78 @@ async function getRiver(slug: string) {
 
   const [historical_last_year, historical_two_years_ago, nwmForecast] =
     (historicalRes as [any, any, any]) ?? [null, null, null];
+
+  // Override trend-based ETA with NWM forecast when available — the linear
+  // extrapolation is unreliable when a storm spike is between now and optimal.
+  if (nwmForecast && river.optimal_flow_min && river.optimal_flow_max) {
+    const currentFlow = currentCondition?.flow ?? null;
+    if (currentFlow !== null) {
+      const oMin = river.optimal_flow_min;
+      const oMax = river.optimal_flow_max;
+      const now  = Date.now();
+
+      // Merge short + medium range, dedupe by timestamp, sort ascending
+      const seen = new Set<string>();
+      const pts = [
+        ...(nwmForecast.shortRange  ?? []),
+        ...(nwmForecast.mediumRange ?? []),
+      ]
+        .filter((p: { timestamp: string; flow: number }) => {
+          if (seen.has(p.timestamp)) return false;
+          seen.add(p.timestamp);
+          return true;
+        })
+        .sort((a: { timestamp: string }, b: { timestamp: string }) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+      const isOptimal = currentFlow >= oMin && currentFlow <= oMax;
+
+      if (!isOptimal) {
+        // Find the first forecast point where flow is in the optimal band
+        const hit = pts.find(
+          (p: { flow: number }) => p.flow >= oMin && p.flow <= oMax
+        );
+        if (hit) {
+          const h = (new Date(hit.timestamp).getTime() - now) / 3_600_000;
+          if (h > 0 && h <= 120) {
+            const label = h < 24
+              ? `Optimal in ~${Math.round(h)}h`
+              : `Optimal in ~${Math.round(h / 24)}d`;
+            eta = {
+              type:  currentFlow > oMax ? 'falling_to_optimal' : 'rising_to_optimal',
+              hours: h,
+              label,
+            };
+          } else {
+            // Forecast shows optimal but it's beyond 5 days or in the past — hide the badge
+            eta = { type: 'no_data', hours: null, label: '' };
+          }
+        } else {
+          // No optimal window visible in the forecast — suppress the badge
+          eta = { type: 'no_data', hours: null, label: '' };
+        }
+      } else {
+        // Currently optimal — find when the forecast exits the band
+        const exit = pts.find(
+          (p: { flow: number }) => p.flow < oMin || p.flow > oMax
+        );
+        if (exit) {
+          const h = (new Date(exit.timestamp).getTime() - now) / 3_600_000;
+          if (h > 0 && h <= 120) {
+            const label = h < 24
+              ? `Leaving optimal in ~${Math.round(h)}h`
+              : `Leaving optimal in ~${Math.round(h / 24)}d`;
+            eta = {
+              type:  exit.flow > oMax ? 'leaving_optimal_rising' : 'leaving_optimal_falling',
+              hours: h,
+              label,
+            };
+          }
+        }
+      }
+    }
+  }
 
   return {
     ...river,
