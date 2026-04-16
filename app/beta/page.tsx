@@ -9,11 +9,11 @@ import { createClient } from '@/lib/supabase/client';
 import { Droplets, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 
 const HOME_REGIONS = [
-  { label: 'Connecticut',    value: 'CT' },
-  { label: 'Maine',          value: 'ME' },
-  { label: 'Massachusetts',  value: 'MA' },
-  { label: 'New Hampshire',  value: 'NH' },
-  { label: 'Vermont',        value: 'VT' },
+  { label: 'Connecticut',    value: 'Connecticut' },
+  { label: 'Maine',          value: 'Maine' },
+  { label: 'Massachusetts',  value: 'Massachusetts' },
+  { label: 'New Hampshire',  value: 'New Hampshire' },
+  { label: 'Vermont',        value: 'Vermont' },
 ];
 
 type Mode = 'login' | 'signup';
