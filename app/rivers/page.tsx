@@ -22,16 +22,32 @@ async function getRivers() {
     return { rivers: [], rosterRiverIds: [], isAuthenticated: false, homeRegions: [] as string[] };
   }
 
-  const { data: conditions } = await supabase
-    .from('conditions')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(10000);
+  // Scope conditions/species queries to the rivers actually being rendered.
+  // Without this scope, a global limit of 10k rows gets crowded out by the
+  // 1,500+ rivers in the catalog — home-region users would see most of their
+  // rivers as "Unknown" just because their conditions fell outside the slice.
+  const scopedRiverIds = rivers.map((r) => r.id);
 
-  const { data: species } = await supabase
-    .from('river_species')
-    .select('*')
-    .limit(10000);
+  const seventyTwoHoursAgo = new Date();
+  seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+
+  const { data: conditions } = scopedRiverIds.length > 0
+    ? await supabase
+        .from('conditions')
+        .select('*')
+        .in('river_id', scopedRiverIds)
+        .gte('timestamp', seventyTwoHoursAgo.toISOString())
+        .order('timestamp', { ascending: false })
+        .limit(10000)
+    : { data: [] };
+
+  const { data: species } = scopedRiverIds.length > 0
+    ? await supabase
+        .from('river_species')
+        .select('*')
+        .in('river_id', scopedRiverIds)
+        .limit(10000)
+    : { data: [] };
 
   let favorites: any[] = [];
   let rosterRiverIds: string[] = [];
