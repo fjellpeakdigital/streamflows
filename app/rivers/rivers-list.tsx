@@ -14,6 +14,7 @@ interface RiversListProps {
   rivers: RiverWithCondition[];
   rosterRiverIds?: string[];
   isAuthenticated?: boolean;
+  homeRegion?: string;
 }
 
 const SORT_ORDER: Record<RiverStatus, number> = {
@@ -39,6 +40,7 @@ export function RiversList({
   rivers,
   rosterRiverIds = [],
   isAuthenticated = false,
+  homeRegion,
 }: RiversListProps) {
   const router = useRouter();
   const [mode, setMode] = useState<'roster' | 'discover'>(
@@ -206,21 +208,25 @@ export function RiversList({
             <div
               className={cn(
                 'grid grid-cols-1 gap-3',
-                mode === 'discover' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                homeRegion
+                  ? mode === 'discover' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'
+                  : mode === 'discover' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
               )}
             >
-              <Select
-                value={regionFilter}
-                onChange={(e) => setRegionFilter(e.target.value)}
-                className="bg-background"
-              >
-                <option value="all">All Regions</option>
-                {regions.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </Select>
+              {!homeRegion && (
+                <Select
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value)}
+                  className="bg-background"
+                >
+                  <option value="all">All Regions</option>
+                  {regions.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </Select>
+              )}
 
               {mode === 'discover' && (
                 <Select

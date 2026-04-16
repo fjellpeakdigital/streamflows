@@ -8,15 +8,12 @@ import { Select } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { Droplets, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 
-const US_STATES = [
-  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
-  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
-  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
-  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
-  'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
-  'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
-  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
-  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+const HOME_REGIONS = [
+  { label: 'Connecticut',    value: 'CT' },
+  { label: 'Maine',          value: 'ME' },
+  { label: 'Massachusetts',  value: 'MA' },
+  { label: 'New Hampshire',  value: 'NH' },
+  { label: 'Vermont',        value: 'VT' },
 ];
 
 type Mode = 'login' | 'signup';
@@ -33,7 +30,7 @@ export default function BetaPage() {
 
   // Signup state
   const [signupName, setSignupName]                       = useState('');
-  const [signupState, setSignupState]                     = useState('');
+  const [signupRegion, setSignupRegion]                   = useState('');
   const [signupEmail, setSignupEmail]                     = useState('');
   const [signupPassword, setSignupPassword]               = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
@@ -82,8 +79,8 @@ export default function BetaPage() {
       setSignupError('Please enter your name');
       return;
     }
-    if (!signupState) {
-      setSignupError('Please select your state');
+    if (!signupRegion) {
+      setSignupError('Please select your home region');
       return;
     }
     if (signupPassword !== signupConfirmPassword) {
@@ -118,7 +115,7 @@ export default function BetaPage() {
         password: signupPassword,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: { full_name: signupName.trim(), state: signupState },
+          data: { full_name: signupName.trim(), home_region: signupRegion },
         },
       });
       if (error) {
@@ -281,19 +278,19 @@ export default function BetaPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="signup-state" className="block text-sm font-medium mb-1.5">
-                    State
+                  <label htmlFor="signup-region" className="block text-sm font-medium mb-1.5">
+                    Home Region
                   </label>
                   <Select
-                    id="signup-state"
-                    value={signupState}
-                    onChange={(e) => setSignupState(e.target.value)}
+                    id="signup-region"
+                    value={signupRegion}
+                    onChange={(e) => setSignupRegion(e.target.value)}
                     required
                     className="h-11"
                   >
-                    <option value="" disabled>Select your state</option>
-                    {US_STATES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                    <option value="" disabled>Select your region</option>
+                    {HOME_REGIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
                     ))}
                   </Select>
                 </div>
