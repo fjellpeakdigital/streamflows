@@ -7,8 +7,16 @@ import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, LayoutGrid, List, Heart, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  getStatusLabel,
+  getStatusBorderColor,
+  getStatusColor,
+  getStatusDotColor,
+  formatFlow,
+  formatTemperature,
+} from '@/lib/river-utils';
 
 interface RiversListProps {
   rivers: RiverWithCondition[];
@@ -46,6 +54,8 @@ export function RiversList({
   const [mode, setMode] = useState<'roster' | 'discover'>(
     isAuthenticated ? 'roster' : 'discover'
   );
+
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState('all');
@@ -188,9 +198,39 @@ export function RiversList({
         <>
           {/* Filter bar */}
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="font-medium">Filter rivers</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="font-medium">Filter rivers</span>
+              </div>
+              <div className="flex items-center rounded-lg border border-border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('card')}
+                  className={cn(
+                    'p-1.5 transition-colors',
+                    viewMode === 'card'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  aria-label="Card view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'p-1.5 transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {mode === 'discover' && (
@@ -280,7 +320,7 @@ export function RiversList({
             )}
           </div>
 
-          {/* Grid */}
+          {/* Results */}
           {filteredRivers.length === 0 ? (
             <div className="text-center py-16 bg-card border border-border rounded-xl">
               <p className="text-muted-foreground text-lg mb-1">
@@ -293,7 +333,7 @@ export function RiversList({
                 Clear Filters
               </Button>
             </div>
-          ) : (
+          ) : viewMode === 'card' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredRivers.map((river) => (
                 <RiverCard
@@ -303,6 +343,70 @@ export function RiversList({
                   onToggleFavorite={handleToggleRoster}
                 />
               ))}
+            </div>
+          ) : (
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              {filteredRivers.map((river, i) => {
+                const condition = river.current_condition;
+                const status = condition?.status ?? 'unknown';
+                const trend = river.trend ?? 'stable';
+                const inRoster = rosterSet.has(river.id);
+                return (
+                  <div
+                    key={river.id}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors',
+                      i !== 0 && 'border-t border-border',
+                      `border-l-4 ${getStatusBorderColor(status)}`
+                    )}
+                  >
+                    {/* Name + region */}
+                    <a href={`/rivers/${river.slug}`} className="flex-1 min-w-0 group">
+                      <div className="font-medium text-sm leading-tight group-hover:text-primary transition-colors truncate">
+                        {river.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">{river.region}</div>
+                    </a>
+
+                    {/* Status */}
+                    <span className={cn('hidden sm:inline-flex text-xs font-semibold px-2 py-0.5 rounded-md shrink-0', getStatusColor(status))}>
+                      {getStatusLabel(status)}
+                    </span>
+                    {/* Status dot (mobile) */}
+                    <span className={cn('sm:hidden h-2 w-2 rounded-full shrink-0', getStatusDotColor(status))} />
+
+                    {/* Flow */}
+                    <div className="text-sm font-semibold tabular-nums w-20 text-right shrink-0">
+                      {formatFlow(condition?.flow ?? null)}
+                    </div>
+
+                    {/* Temp */}
+                    <div className="hidden md:block text-sm text-muted-foreground tabular-nums w-16 text-right shrink-0">
+                      {formatTemperature(condition?.temperature ?? null)}
+                    </div>
+
+                    {/* Trend */}
+                    <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground w-16 shrink-0">
+                      {trend === 'rising'  && <TrendingUp   className="h-3.5 w-3.5 text-amber-600" />}
+                      {trend === 'falling' && <TrendingDown  className="h-3.5 w-3.5 text-blue-600" />}
+                      {trend === 'stable'  && <Minus         className="h-3.5 w-3.5" />}
+                      <span className="capitalize">{trend}</span>
+                    </div>
+
+                    {/* Roster toggle */}
+                    {isAuthenticated && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleRoster(river.id)}
+                        className="shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                        aria-label={inRoster ? 'Remove from roster' : 'Add to roster'}
+                      >
+                        <Heart className={cn('h-4 w-4 transition-colors', inRoster ? 'fill-primary text-primary' : 'text-muted-foreground hover:text-primary')} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
