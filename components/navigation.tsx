@@ -94,7 +94,7 @@ export function Navigation({ user }: { user: any }) {
                       Log In
                     </Button>
                   </Link>
-                  <Link href="/signup">
+                  <Link href="/beta">
                     <Button size="sm">Get Started</Button>
                   </Link>
                 </div>
@@ -173,7 +173,7 @@ export function Navigation({ user }: { user: any }) {
                         Log In
                       </Button>
                     </Link>
-                    <Link href="/signup" onClick={() => setMobileOpen(false)}>
+                    <Link href="/beta" onClick={() => setMobileOpen(false)}>
                       <Button size="sm" className="w-full">
                         Get Started
                       </Button>

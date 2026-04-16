@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
 import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
@@ -118,6 +119,11 @@ async function getStats(rivers: RiverWithCondition[]) {
 const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'unknown'];
 
 export default async function RiversPage() {
+  // Auth gate — must be logged in to see river data
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/beta');
+
   const { rivers, rosterRiverIds, isAuthenticated } = await getRivers();
   const stats = await getStats(rivers);
 

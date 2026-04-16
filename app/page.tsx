@@ -129,7 +129,7 @@ function HeroSection() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/signup">
+              <Link href="/beta">
                 <Button size="lg" variant="outline" className="gap-2 text-base h-12 px-6">
                   Get Started Free
                 </Button>
@@ -734,7 +734,7 @@ function FinalCTASection() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/signup">
+            <Link href="/beta">
               <Button size="lg" variant="outline" className="gap-2 text-base h-12 px-6">
                 Create Free Account
               </Button>
