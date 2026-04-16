@@ -117,13 +117,14 @@ export function parseUSGSResponse(
 export async function fetchUSGSBatch(
   siteIds: string[],
   endpoint: 'iv' | 'dv',
-  errors: string[]
+  errors: string[],
+  period?: string
 ): Promise<Map<string, SiteData>> {
   const sitesParam = siteIds.join(',');
   const baseUrl = `https://waterservices.usgs.gov/nwis/${endpoint}/`;
-  const params = endpoint === 'iv'
-    ? `format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all`
-    : `format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all&period=P1D`;
+  const effectivePeriod = period ?? (endpoint === 'dv' ? 'P1D' : undefined);
+  const periodParam = effectivePeriod ? `&period=${effectivePeriod}` : '';
+  const params = `format=json&sites=${sitesParam}&parameterCd=00060,00065,00010&siteStatus=all${periodParam}`;
   const usgsUrl = `${baseUrl}?${params}`;
 
   try {
@@ -151,14 +152,15 @@ export async function fetchAllSites(
   endpoint: 'iv' | 'dv',
   errors: string[],
   batchSize: number = 50,
-  concurrency: number = 3
+  concurrency: number = 3,
+  period?: string
 ): Promise<Map<string, SiteData>> {
   const batches = chunk(siteIds, batchSize);
-  console.log(`[cron] ${endpoint.toUpperCase()}: ${siteIds.length} stations in ${batches.length} batch(es)`);
+  console.log(`[cron] ${endpoint.toUpperCase()}: ${siteIds.length} stations in ${batches.length} batch(es)${period ? ` (period=${period})` : ''}`);
   const start = Date.now();
 
   const batchResults = await runWithConcurrency(
-    batches.map((batch) => () => fetchUSGSBatch(batch, endpoint, errors)),
+    batches.map((batch) => () => fetchUSGSBatch(batch, endpoint, errors, period)),
     concurrency
   );
 

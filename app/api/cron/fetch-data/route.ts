@@ -43,8 +43,21 @@ export async function GET(request: Request) {
     // Collect unique station IDs
     const stationIds = Array.from(new Set(rivers.map((r) => r.usgs_station_id)));
 
-    // Fetch IV data
+    // Fetch IV data. USGS IV defaults to mode=LATEST (one sample); a gauge that
+    // hasn't reported in ~last-few-hours can come back empty, which would leave
+    // the conditions row frozen forever. Retry missing stations with period=P7D
+    // so sporadic reporters still get refreshed.
     const allSiteData = await fetchAllSites(stationIds, 'iv', errors, 50, 3);
+
+    const missingAfterDefault = stationIds.filter((id) => !allSiteData.has(id));
+    if (missingAfterDefault.length > 0) {
+      console.log(`[cron:realtime] ${missingAfterDefault.length} stations empty in default window; retrying with period=P7D`);
+      const retryData = await fetchAllSites(missingAfterDefault, 'iv', errors, 50, 3, 'P7D');
+      for (const [siteId, data] of retryData) {
+        allSiteData.set(siteId, data);
+      }
+      console.log(`[cron:realtime] P7D retry recovered ${retryData.size}/${missingAfterDefault.length} stations`);
+    }
 
     // Fetch old flows for trend calculation
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
@@ -66,7 +79,6 @@ export async function GET(request: Request) {
     }
 
     // Process rivers
-    const twentyFourHours = 24 * 60 * 60 * 1000;
     const inserts: Array<{
       river_id: string;
       timestamp: string;
@@ -78,6 +90,8 @@ export async function GET(request: Request) {
     }> = [];
 
     let noDataCount = 0;
+    let staleButInsertedCount = 0;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
     for (const river of rivers) {
       const siteData = allSiteData.get(river.usgs_station_id);
       if (!siteData) {
@@ -85,11 +99,12 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // Note: we used to hard-skip samples older than 24h, which kept a
+      // stale row frozen whenever a gauge had a reporting gap. Insert the
+      // row regardless; the UI flags anything older than ~2h via
+      // differenceInHours on river-detail.tsx.
       const dataAge = Date.now() - new Date(siteData.timestamp).getTime();
-      if (dataAge > twentyFourHours) {
-        errors.push(`${river.name}: stale IV data (${siteData.timestamp}), skipping`);
-        continue;
-      }
+      if (dataAge > twentyFourHours) staleButInsertedCount++;
 
       const status = calculateStatus(siteData.flow, river.optimal_flow_min, river.optimal_flow_max);
 
@@ -114,26 +129,32 @@ export async function GET(request: Request) {
       results.push({ river: river.name, flow: siteData.flow, temperature: siteData.temperature, status });
     }
 
-    // Batch insert with duplicate fallback
+    // Upsert on (river_id, timestamp) so a same-timestamp sample refreshes
+    // the row (e.g., a gauge that re-republishes the same dateTime) instead
+    // of being silently swallowed by the unique constraint.
     if (inserts.length > 0) {
       const insertStart = Date.now();
-      const { error: insertError } = await supabase.from('conditions').insert(inserts);
+      const { error: upsertError } = await supabase
+        .from('conditions')
+        .upsert(inserts, { onConflict: 'river_id,timestamp' });
 
-      if (insertError) {
-        console.log(`[cron:realtime] Batch insert failed, falling back to individual: ${insertError.message}`);
+      if (upsertError) {
+        console.log(`[cron:realtime] Batch upsert failed, falling back to individual: ${upsertError.message}`);
         let inserted = 0;
         for (const row of inserts) {
-          const { error: rowError } = await supabase.from('conditions').insert(row);
-          if (rowError && rowError.code !== '23505') {
+          const { error: rowError } = await supabase
+            .from('conditions')
+            .upsert(row, { onConflict: 'river_id,timestamp' });
+          if (rowError) {
             const name = rivers.find((r) => r.id === row.river_id)?.name ?? row.river_id;
-            errors.push(`INSERT ${name}: ${JSON.stringify(rowError)}`);
-          } else if (!rowError) {
+            errors.push(`UPSERT ${name}: ${JSON.stringify(rowError)}`);
+          } else {
             inserted++;
           }
         }
-        console.log(`[cron:realtime] Individual inserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
+        console.log(`[cron:realtime] Individual upserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
       } else {
-        console.log(`[cron:realtime] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
+        console.log(`[cron:realtime] Batch upsert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
       }
     }
 
@@ -146,6 +167,7 @@ export async function GET(request: Request) {
       total_rivers: rivers.length,
       processed: results.length,
       no_data_count: noDataCount,
+      stale_but_inserted_count: staleButInsertedCount,
       duration_ms: totalTime,
       errors,
       results,
