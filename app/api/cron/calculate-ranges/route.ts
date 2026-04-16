@@ -199,9 +199,9 @@ export async function GET(request: Request) {
   // force=true → recalculate ALL rivers, not just those missing ranges
   const force = searchParams.get('force') === 'true';
 
-  // Normal mode: P2Y (2 years, better percentiles), small batches
+  // Normal mode: P730D (2 years, day-based — more compatible than P2Y), small batches
   // Force mode:  P365D (1 year, proven), larger batches — processes all 1,500+ rivers
-  const dvPeriod = force ? 'P365D' : 'P2Y';
+  const dvPeriod = force ? 'P365D' : 'P730D';
   const dvBatchSize = force ? 50 : 20;
 
   try {
@@ -254,9 +254,16 @@ export async function GET(request: Request) {
     const dvMissed = stationIds.filter((id) => !allFlows.has(id));
     const allStats = new Map<string, { p25: number; p75: number }>();
 
-    if (dvMissed.length > 0) {
-      console.log(`[ranges] Stats fallback for ${dvMissed.length} stations (batch=10)`);
-      const statBatches = chunk(dvMissed, 10); // stats endpoint rejects large batches
+    // The stats endpoint rejects non-standard lat/lon encoded IDs (15-digit IDs starting with digits like 41…)
+    const statsEligible = dvMissed.filter((id) => /^\d{8}$/.test(id));
+    const statsSkipped = dvMissed.length - statsEligible.length;
+    if (statsSkipped > 0) {
+      console.log(`[ranges] Stats: skipping ${statsSkipped} non-standard station IDs`);
+    }
+
+    if (statsEligible.length > 0) {
+      console.log(`[ranges] Stats fallback for ${statsEligible.length} stations (batch=10)`);
+      const statBatches = chunk(statsEligible, 10); // stats endpoint rejects large batches
       const statResults = await runWithConcurrency(
         statBatches.map((batch) => () => fetchStatsBatch(batch, errors)),
         2
@@ -264,7 +271,7 @@ export async function GET(request: Request) {
       for (const m of statResults) {
         for (const [id, range] of m) allStats.set(id, range);
       }
-      console.log(`[ranges] Stats: resolved ${allStats.size}/${dvMissed.length} previously-missed stations`);
+      console.log(`[ranges] Stats: resolved ${allStats.size}/${statsEligible.length} previously-missed stations`);
     }
 
     // ── Update database ───────────────────────────────────────────────────────
