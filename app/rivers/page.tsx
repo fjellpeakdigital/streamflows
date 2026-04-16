@@ -28,15 +28,20 @@ async function getRivers() {
   // rivers as "Unknown" just because their conditions fell outside the slice.
   const scopedRiverIds = rivers.map((r) => r.id);
 
-  const seventyTwoHoursAgo = new Date();
-  seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
+  // Window must accommodate USGS DV (daily values) publish lag — DV data is
+  // released 1-2 days in arrears, our cron picks it up, and then the user
+  // visits the page another day later. A tight 72h window would hide perfectly
+  // valid DV-backed rivers as "Unknown". 7 days matches the daily cron's own
+  // staleness threshold.
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const { data: conditions } = scopedRiverIds.length > 0
     ? await supabase
         .from('conditions')
         .select('*')
         .in('river_id', scopedRiverIds)
-        .gte('timestamp', seventyTwoHoursAgo.toISOString())
+        .gte('timestamp', sevenDaysAgo.toISOString())
         .order('timestamp', { ascending: false })
         .limit(10000)
     : { data: [] };
