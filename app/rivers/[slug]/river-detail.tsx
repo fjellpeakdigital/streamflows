@@ -34,6 +34,7 @@ import { calculateFlowEta } from '@/lib/flow-eta';
 import { interpretConditions } from '@/lib/conditions-interpreter';
 import { ConditionsSummaryCard } from '@/components/conditions-summary';
 import type { NWMForecastPoint } from '@/lib/nwm-forecast';
+import { OptimalRangeEditor } from '@/components/optimal-range-editor';
 import {
   Heart,
   CalendarPlus,
@@ -181,6 +182,11 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     historical_last_year, historical_two_years_ago,
     hatches = [],
     nwmForecast = null,
+    is_in_roster = false,
+    optimal_flow_min_override = null,
+    optimal_flow_max_override = null,
+    optimal_flow_min_global = null,
+    optimal_flow_max_global = null,
   } = riverData;
 
   const router = useRouter();
@@ -402,9 +408,9 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     icon: Waves,
                     label: 'Flow',
                     value: formatFlow(current_condition?.flow ?? null),
-                    sub: optimal_flow_min && optimal_flow_max
-                      ? `Optimal ${optimal_flow_min}–${optimal_flow_max} CFS`
-                      : null,
+                    // Optimal range moved to its own row below the tiles so the
+                    // per-user override editor has room to expand inline.
+                    sub: null,
                     subVariant: 'muted' as const,
                   },
                   {
@@ -453,6 +459,23 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     )}
                   </div>
                 ))}
+              </div>
+
+              {/* Optimal range row — shows current effective range and lets
+                  roster users override it per-river. Collapsed by default. */}
+              <div className="mt-3">
+                <OptimalRangeEditor
+                  riverId={id}
+                  effectiveMin={optimal_flow_min}
+                  effectiveMax={optimal_flow_max}
+                  globalMin={optimal_flow_min_global}
+                  globalMax={optimal_flow_max_global}
+                  hasOverride={
+                    optimal_flow_min_override != null ||
+                    optimal_flow_max_override != null
+                  }
+                  isInRoster={is_in_roster}
+                />
               </div>
 
               {current_condition && (() => {

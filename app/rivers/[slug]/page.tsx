@@ -98,9 +98,16 @@ async function getRiver(slug: string) {
   // ── 3. User-specific queries (need user.id, run in parallel) ─────────────────
   let is_favorite = false;
   let user_note   = null;
+  // Roster row for this river (if any) — drives the per-user optimal range
+  // override. If null, the user hasn't added this river to their roster and
+  // can't customize anything; we fall back to the global river values.
+  let rosterRow: {
+    optimal_flow_min_override: number | null;
+    optimal_flow_max_override: number | null;
+  } | null = null;
 
   if (user) {
-    const [favRes, noteRes, userCheckinsRes] = await Promise.all([
+    const [favRes, noteRes, userCheckinsRes, rosterRes] = await Promise.all([
       supabase
         .from('user_favorites')
         .select('id')
@@ -123,14 +130,33 @@ async function getRiver(slug: string) {
         .or(`is_public.eq.true,user_id.eq.${user.id}`)
         .order('fished_at', { ascending: false })
         .limit(20),
+
+      supabase
+        .from('user_roster')
+        .select('optimal_flow_min_override, optimal_flow_max_override')
+        .eq('user_id', user.id)
+        .eq('river_id', river.id)
+        .eq('archived', false)
+        .maybeSingle(),
     ]);
 
     is_favorite = !!favRes.data;
     user_note   = noteRes.data;
+    rosterRow   = rosterRes.data;
 
     // Replace public-only checkins with authed checkins
     checkinsRawRes.data = userCheckinsRes.data;
   }
+
+  // Effective optimal range = per-user override if set, else global river value.
+  // We mutate `river` so all downstream code (status calc, ETA, NWM forecast,
+  // chart reference area) automatically picks up the user's preference.
+  const globalOptimalMin = river.optimal_flow_min;
+  const globalOptimalMax = river.optimal_flow_max;
+  river.optimal_flow_min =
+    rosterRow?.optimal_flow_min_override ?? globalOptimalMin;
+  river.optimal_flow_max =
+    rosterRow?.optimal_flow_max_override ?? globalOptimalMax;
 
   // ── 4. Assemble conditions ───────────────────────────────────────────────────
   const allConditions = conditionsRes.data ?? [];
@@ -256,6 +282,13 @@ async function getRiver(slug: string) {
     historical_two_years_ago,
     hatches:                 hatchesRes.data ?? [],
     nwmForecast,
+    // Per-user optimal range plumbing — exposed so the editor on the detail
+    // page can render correct state and reset to global when asked.
+    is_in_roster:               !!rosterRow,
+    optimal_flow_min_override:  rosterRow?.optimal_flow_min_override ?? null,
+    optimal_flow_max_override:  rosterRow?.optimal_flow_max_override ?? null,
+    optimal_flow_min_global:    globalOptimalMin,
+    optimal_flow_max_global:    globalOptimalMax,
   };
 }
 
