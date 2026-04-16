@@ -137,6 +137,34 @@ export interface UserAlert {
   updated_at: string;
 }
 
+export interface HatchEvent {
+  id: string;
+  river_id: string;
+  /** NULL = seed data, readable by everyone. Non-null = user-owned custom. */
+  user_id: string | null;
+  insect: string;
+  start_month: number;
+  start_day: number;
+  end_month: number;
+  end_day: number;
+  peak_start_month: number | null;
+  peak_start_day: number | null;
+  peak_end_month: number | null;
+  peak_end_day: number | null;
+  notes: string | null;
+  /** Water temp (°F) threshold that typically triggers the hatch */
+  temp_trigger: number | null;
+  /** Free-form patterns list: "#18 parachute BWO, #20 CDC emerger" */
+  fly_patterns: string | null;
+  /** Free text: nymph / emerger / dun / spinner / adult */
+  stage: string | null;
+  /** Free text: morning / midday / afternoon / evening */
+  time_of_day: string | null;
+  /** Back-reference to the seed this custom was cloned from, if any */
+  source_hatch_id: string | null;
+  created_at: string;
+}
+
 // Extended types with relations
 export interface CheckInWithMeta extends CheckIn {
   /** Truncated display name derived server-side from the user's email */
@@ -199,6 +227,11 @@ export interface Database {
         Row: CheckIn;
         Insert: Omit<CheckIn, 'id' | 'created_at'>;
         Update: Partial<Omit<CheckIn, 'id' | 'created_at'>>;
+      };
+      hatch_events: {
+        Row: HatchEvent;
+        Insert: Omit<HatchEvent, 'id' | 'created_at'>;
+        Update: Partial<Omit<HatchEvent, 'id' | 'created_at'>>;
       };
     };
   };

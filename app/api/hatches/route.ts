@@ -15,6 +15,9 @@ const ALLOWED_UPDATE_FIELDS = [
   'peak_end_day',
   'notes',
   'temp_trigger',
+  'fly_patterns',
+  'stage',
+  'time_of_day',
 ] as const;
 
 async function getContext() {
@@ -74,6 +77,10 @@ export async function POST(request: Request) {
       peak_end_day,
       notes,
       temp_trigger,
+      fly_patterns,
+      stage,
+      time_of_day,
+      source_hatch_id,
     } = body ?? {};
 
     if (
@@ -109,6 +116,10 @@ export async function POST(request: Request) {
         peak_end_day: peak_end_day ?? null,
         notes: notes ?? null,
         temp_trigger: temp_trigger ?? null,
+        fly_patterns: fly_patterns ?? null,
+        stage: stage ?? null,
+        time_of_day: time_of_day ?? null,
+        source_hatch_id: source_hatch_id ?? null,
       })
       .select()
       .single();
