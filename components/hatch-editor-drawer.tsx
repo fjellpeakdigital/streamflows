@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bug, Trash2, X } from 'lucide-react';
+import { Bug, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { HATCH_TEMPLATES, type HatchTemplate } from '@/lib/hatch-templates';
 import type { HatchEvent } from '@/lib/types/database';
 
 export interface HatchEditorRiver {
@@ -79,9 +80,32 @@ export function HatchEditorDrawer({
   const [flyPatterns,  setFlyPatterns]  = useState<string>(entry?.fly_patterns ?? '');
   const [notes,        setNotes]        = useState<string>(entry?.notes ?? '');
 
-  const [saving,   setSaving]   = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [saving,         setSaving]         = useState(false);
+  const [deleting,       setDeleting]       = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
+
+  const applyTemplate = (t: HatchTemplate) => {
+    setInsect(t.insect);
+    setStage(t.stage);
+    setTimeOfDay(t.time_of_day);
+    setStartMonth(t.start_month);
+    setStartDay(t.start_day);
+    setEndMonth(t.end_month);
+    setEndDay(t.end_day);
+    const hasPeak = t.peak_start_month != null && t.peak_start_day != null;
+    setPeakEnabled(hasPeak);
+    if (hasPeak) {
+      setPeakStartMonth(t.peak_start_month as number);
+      setPeakStartDay(t.peak_start_day as number);
+      setPeakEndMonth(t.peak_end_month as number);
+      setPeakEndDay(t.peak_end_day as number);
+    }
+    setTempTrigger(t.temp_trigger != null ? String(t.temp_trigger) : '');
+    setFlyPatterns(t.fly_patterns);
+    setNotes(t.notes);
+    setAppliedTemplateId(t.id);
+  };
 
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
 
@@ -227,6 +251,41 @@ export function HatchEditorDrawer({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Quick-add templates (create mode only) */}
+          {!isEdit && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+                  Quick add from regional hatches
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Pick a starter — you can tweak any field before saving.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {HATCH_TEMPLATES.map((t) => {
+                  const active = appliedTemplateId === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyTemplate(t)}
+                      className={cn(
+                        'text-xs px-2.5 py-1 rounded-full border transition-colors',
+                        active
+                          ? 'border-primary bg-primary text-white font-semibold'
+                          : 'border-border bg-white text-foreground hover:border-primary/50 hover:bg-primary/5'
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
