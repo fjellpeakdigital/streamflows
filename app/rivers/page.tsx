@@ -33,15 +33,15 @@ async function getRivers() {
   // visits the page another day later. A tight 72h window would hide perfectly
   // valid DV-backed rivers as "Unknown". 7 days matches the daily cron's own
   // staleness threshold.
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const conditionsCutoff = new Date();
+  conditionsCutoff.setDate(conditionsCutoff.getDate() - 7);
 
   const { data: conditions } = scopedRiverIds.length > 0
     ? await supabase
         .from('conditions')
         .select('*')
         .in('river_id', scopedRiverIds)
-        .gte('timestamp', sevenDaysAgo.toISOString())
+        .gte('timestamp', conditionsCutoff.toISOString())
         .order('timestamp', { ascending: false })
         .limit(10000)
     : { data: [] };
