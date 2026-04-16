@@ -275,7 +275,7 @@ function HatchChip({ river }: { river: DashboardRiver }) {
   return null;
 }
 
-function ConditionsRow({ river, note }: { river: DashboardRiver; note?: string }) {
+function ConditionsRow({ river, note, index = 0 }: { river: DashboardRiver; note?: string; index?: number }) {
   const status = (river.current_condition?.status ?? 'unknown') as RiverStatus;
   const flow = river.current_condition?.flow ?? null;
   const temp = river.current_condition?.temperature ?? null;
@@ -283,11 +283,14 @@ function ConditionsRow({ river, note }: { river: DashboardRiver; note?: string }
   const trend = trendLabel(river.trend);
 
   return (
-    <div className="space-y-1.5">
+    <div
+      className="space-y-1.5 animate-slide-up"
+      style={{ ['--i' as string]: Math.min(index, 8) } as React.CSSProperties}
+    >
       <Link
         href={`/rivers/${river.slug}`}
         className={cn(
-          'group block bg-card border border-border rounded-xl p-3 border-l-4 transition-colors hover:border-foreground/20',
+          'hover-lift group block bg-card border border-border rounded-xl p-3 border-l-4 hover:border-primary/30',
           getStatusBorderColor(status)
         )}
       >
@@ -503,11 +506,12 @@ export function GuideDashboard({
           {nextTrip && <NextTripBar trip={nextTrip} backup={backup} />}
 
           <div className="space-y-2">
-            {sorted.map((river) => (
+            {sorted.map((river, i) => (
               <ConditionsRow
                 key={river.id}
                 river={river}
                 note={notesByRiver[river.id]}
+                index={i}
               />
             ))}
           </div>

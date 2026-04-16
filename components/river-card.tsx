@@ -51,9 +51,8 @@ export function RiverCard({
   return (
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
       <Card className={`
-        h-full overflow-hidden transition-all duration-200
-        hover:shadow-md hover:-translate-y-0.5
-        border-border bg-white
+        hover-lift h-full overflow-hidden
+        border-border bg-white hover:border-primary/30
         border-l-4 ${getStatusBorderColor(status)}
       `}>
         <CardContent className="p-4 space-y-3">

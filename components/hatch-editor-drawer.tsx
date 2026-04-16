@@ -205,14 +205,14 @@ export function HatchEditorDrawer({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/40 animate-backdrop-in"
       />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label={isEdit ? 'Edit hatch' : 'Add hatch'}
-        className="relative ml-auto w-full md:max-w-lg bg-white md:shadow-xl overflow-y-auto flex flex-col"
+        className="relative ml-auto w-full md:max-w-lg bg-white md:shadow-xl overflow-y-auto flex flex-col animate-drawer-in-right"
       >
         <div className="sticky top-0 z-10 bg-white border-b border-border px-5 py-3 flex items-center justify-between">
           <h2 className="text-base font-semibold flex items-center gap-2">

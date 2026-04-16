@@ -147,14 +147,17 @@ export function HatchesClient({ rivers, hatches }: HatchesClientProps) {
   const renderSections = () => {
     if (rivers.length === 0) {
       return (
-        <div className="bg-card border border-border rounded-xl px-4 py-10 text-center">
-          <p className="text-sm font-medium mb-1">No rivers on your roster yet.</p>
-          <p className="text-xs text-muted-foreground">
-            <Link href="/rivers" className="text-primary hover:underline">
-              Add rivers
-            </Link>{' '}
-            to start building out your hatch calendar.
+        <div className="bg-card border border-border rounded-2xl px-6 py-16 text-center animate-fade-in">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <BookOpenText className="h-6 w-6" />
+          </div>
+          <p className="text-base font-semibold mb-1.5">No rivers on your roster yet.</p>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Add the rivers you fish, then build out their hatches one Quick-add at a time.
           </p>
+          <Link href="/rivers" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
+            Browse rivers
+          </Link>
         </div>
       );
     }
@@ -165,48 +168,56 @@ export function HatchesClient({ rivers, hatches }: HatchesClientProps) {
         : rivers.filter((r) => r.id === riverFilter);
 
     return (
-      <div className="space-y-6">
-        {filteredRivers.map((river) => {
+      <div className="space-y-5">
+        {filteredRivers.map((river, riverIdx) => {
           const rows = hatchesByRiver.get(river.id) ?? [];
           const allRows = liveHatches.filter((h) => h.river_id === river.id);
           return (
-            <section key={river.id} className="bg-white border border-border rounded-xl overflow-hidden">
-              <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-                <div className="min-w-0">
+            <section
+              key={river.id}
+              className="animate-slide-up bg-white border border-border rounded-2xl overflow-hidden"
+              style={{ ['--i' as string]: Math.min(riverIdx, 6) } as React.CSSProperties}
+            >
+              {/* Quieter river header: small uppercase label + subtle action */}
+              <header className="flex items-center justify-between gap-2 px-4 py-2.5 bg-muted/40 border-b border-border/60">
+                <div className="min-w-0 flex items-baseline gap-2">
                   <Link
                     href={`/rivers/${river.slug}`}
-                    className="text-base font-semibold text-foreground hover:underline"
+                    className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
                   >
                     {river.name}
                   </Link>
                   {river.region && (
-                    <span className="ml-2 text-xs text-muted-foreground">{river.region}</span>
+                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
+                      {river.region}
+                    </span>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
+                <button
+                  type="button"
                   onClick={() => setDrawer({ mode: 'create', riverId: river.id })}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add hatch
-                </Button>
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </button>
               </header>
 
               {rows.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground text-center">
+                <p className="px-4 py-8 text-sm text-muted-foreground text-center">
                   {activeOnly && allRows.length > 0
                     ? 'Nothing active on this river right now.'
-                    : 'No hatches yet — tap Add to start filling this in.'}
+                    : 'No hatches yet — tap Add to fill this in.'}
                 </p>
               ) : (
-                <ul className="divide-y divide-border">
-                  {rows.map((h) => (
+                <ul className="divide-y divide-border/60">
+                  {rows.map((h, i) => (
                     <HatchRow
                       key={h.id}
                       hatch={h}
                       today={today}
                       busy={busyId === h.id}
+                      index={i}
                       onEdit={() => setDrawer({ mode: 'edit', entry: h })}
                       onCustomize={() => handleCustomize(h)}
                       onResetToSeed={() => handleResetToSeed(h)}
@@ -304,6 +315,7 @@ function HatchRow({
   hatch,
   today,
   busy,
+  index = 0,
   onEdit,
   onCustomize,
   onResetToSeed,
@@ -311,6 +323,7 @@ function HatchRow({
   hatch: HatchEvent;
   today: Date;
   busy: boolean;
+  index?: number;
   onEdit: () => void;
   onCustomize: () => void;
   onResetToSeed: () => void;
@@ -330,10 +343,18 @@ function HatchRow({
   return (
     <li
       className={cn(
-        'px-4 py-3',
+        'relative px-4 py-3 animate-slide-up',
         active && 'bg-emerald-50/40'
       )}
+      style={{ ['--i' as string]: Math.min(index, 8) } as React.CSSProperties}
     >
+      {active && (
+        <div
+          aria-hidden="true"
+          className="shimmer-active pointer-events-none absolute inset-0"
+        />
+      )}
+      <div className="relative">
       <div className="flex items-start justify-between gap-3 mb-1.5">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -433,6 +454,7 @@ function HatchRow({
           {hatch.notes}
         </p>
       )}
+      </div>
     </li>
   );
 }

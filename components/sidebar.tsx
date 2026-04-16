@@ -108,6 +108,11 @@ export function Sidebar({
               river.optimal_flow_min,
               river.optimal_flow_max
             );
+            // Pulse the dot when data is fresh (< 30 min) — signals live updates
+            const ts = river.current_condition?.timestamp;
+            const isFresh = ts
+              ? Date.now() - new Date(ts).getTime() < 30 * 60 * 1000
+              : false;
             return (
               <li key={river.id}>
                 <Link
@@ -122,7 +127,8 @@ export function Sidebar({
                   <span
                     className={cn(
                       'h-2 w-2 shrink-0 rounded-full',
-                      getStatusDotColor(status)
+                      getStatusDotColor(status),
+                      isFresh && 'animate-pulse-dot'
                     )}
                     aria-hidden="true"
                   />

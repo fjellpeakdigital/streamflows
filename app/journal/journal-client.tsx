@@ -7,6 +7,7 @@ import {
   BookText,
   ChevronDown,
   ChevronUp,
+  Feather,
   Filter,
   Globe,
   Lock,
@@ -389,22 +390,31 @@ export function JournalClient({ rivers, entries, pinnedNotes }: JournalClientPro
 
       {/* Timeline */}
       {filteredEntries.length === 0 ? (
-        <div className="bg-card border border-border rounded-xl px-4 py-10 text-center">
+        <div className="bg-card border border-border rounded-2xl px-6 py-16 text-center animate-fade-in">
           {liveEntries.length === 0 ? (
             <>
-              <p className="text-sm font-medium mb-1">Your journal is empty.</p>
-              <p className="text-xs text-muted-foreground">
-                Log a trip — every entry captures the flow and temp at that moment
-                so you can see what worked and when.
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Feather className="h-6 w-6" />
+              </div>
+              <p className="text-base font-semibold mb-1.5">Your journal is empty.</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                Log your first trip — every entry captures the flow and temp at that
+                moment, so you&apos;ll remember what worked and when.
               </p>
+              {rivers.length > 0 && (
+                <Button size="sm" onClick={() => setDrawerState({ mode: 'create' })}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  New entry
+                </Button>
+              )}
             </>
           ) : (
             <>
-              <p className="text-sm font-medium mb-1">No entries match these filters.</p>
+              <p className="text-base font-semibold mb-1.5">No entries match these filters.</p>
               <button
                 type="button"
                 onClick={clearFilters}
-                className="text-xs text-primary hover:underline"
+                className="text-sm text-primary hover:underline"
               >
                 Clear filters
               </button>
@@ -412,17 +422,24 @@ export function JournalClient({ rivers, entries, pinnedNotes }: JournalClientPro
           )}
         </div>
       ) : (
-        <div className="space-y-6">
-          {groups.map(([dayKey, dayEntries]) => (
-            <section key={dayKey}>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        <div className="space-y-8">
+          {groups.map(([dayKey, dayEntries], groupIdx) => (
+            <section key={dayKey} className="relative">
+              {/* Sticky day header — offsets below the mobile top bar / desktop viewport */}
+              <h2
+                className="sticky top-0 z-10 -mx-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground bg-background/85 backdrop-blur-sm"
+              >
                 {format(parseISO(dayKey), 'EEEE · MMM d, yyyy')}
+                <span className="ml-2 text-muted-foreground/60 font-normal normal-case tracking-normal">
+                  · {dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}
+                </span>
               </h2>
-              <ul className="space-y-3">
-                {dayEntries.map((e) => (
+              <ul className="space-y-3 mt-2">
+                {dayEntries.map((e, i) => (
                   <EntryCard
                     key={e.id}
                     entry={e}
+                    index={groupIdx * 2 + i}
                     onEdit={() => setDrawerState({ mode: 'edit', entry: e })}
                   />
                 ))}
@@ -455,9 +472,11 @@ export function JournalClient({ rivers, entries, pinnedNotes }: JournalClientPro
 function EntryCard({
   entry,
   onEdit,
+  index = 0,
 }: {
   entry: JournalEntry;
   onEdit: () => void;
+  index?: number;
 }) {
   const borderClass = entry.conditions_rating
     ? RATING_BORDER[entry.conditions_rating]
@@ -480,12 +499,15 @@ function EntryCard({
     : null;
 
   return (
-    <li>
+    <li
+      className="animate-slide-up"
+      style={{ ['--i' as string]: Math.min(index, 8) } as React.CSSProperties}
+    >
       <button
         type="button"
         onClick={onEdit}
         className={cn(
-          'w-full text-left bg-white border border-border border-l-4 rounded-xl p-4 hover:border-primary/40 hover:shadow-sm transition-all',
+          'hover-lift w-full text-left bg-white border border-border border-l-4 rounded-xl p-4 hover:border-primary/40',
           borderClass
         )}
       >

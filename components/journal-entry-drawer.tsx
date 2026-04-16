@@ -204,7 +204,7 @@ export function JournalEntryDrawer({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/40 animate-backdrop-in"
       />
 
       {/* Sheet */}
@@ -212,7 +212,7 @@ export function JournalEntryDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={isEdit ? 'Edit journal entry' : 'New journal entry'}
-        className="relative ml-auto w-full md:max-w-lg bg-white md:shadow-xl overflow-y-auto flex flex-col"
+        className="relative ml-auto w-full md:max-w-lg bg-white md:shadow-xl overflow-y-auto flex flex-col animate-drawer-in-right"
       >
         <div className="sticky top-0 z-10 bg-white border-b border-border px-5 py-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">
