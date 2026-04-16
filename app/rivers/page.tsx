@@ -9,15 +9,16 @@ export const dynamic = 'force-dynamic';
 async function getRivers() {
   const supabase = await createClient();
 
-  const { data: rivers, error: riversError } = await supabase
-    .from('rivers')
-    .select('*')
-    .order('name')
-    .limit(5000);
+  const { data: { user } } = await supabase.auth.getUser();
+  const homeRegion = user?.user_metadata?.home_region as string | undefined;
+
+  let riversQuery = supabase.from('rivers').select('*').order('name').limit(5000);
+  if (homeRegion) riversQuery = riversQuery.eq('region', homeRegion);
+  const { data: rivers, error: riversError } = await riversQuery;
 
   if (riversError) {
     console.error('Error fetching rivers:', riversError);
-    return { rivers: [], rosterRiverIds: [], isAuthenticated: false };
+    return { rivers: [], rosterRiverIds: [], isAuthenticated: false, homeRegion: undefined };
   }
 
   const { data: conditions } = await supabase
@@ -30,8 +31,6 @@ async function getRivers() {
     .from('river_species')
     .select('*')
     .limit(10000);
-
-  const { data: { user } } = await supabase.auth.getUser();
 
   let favorites: any[] = [];
   let rosterRiverIds: string[] = [];
@@ -102,7 +101,7 @@ async function getRivers() {
     return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };
   });
 
-  return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user };
+  return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user, homeRegion };
 }
 
 async function getStats(rivers: RiverWithCondition[]) {
@@ -124,7 +123,7 @@ export default async function RiversPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/beta');
 
-  const { rivers, rosterRiverIds, isAuthenticated } = await getRivers();
+  const { rivers, rosterRiverIds, isAuthenticated, homeRegion } = await getRivers();
   const stats = await getStats(rivers);
 
   return (
@@ -134,7 +133,7 @@ export default async function RiversPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-1">River Conditions</h1>
         <p className="text-muted-foreground text-sm">
-          Real-time flow data for {stats.total} New England rivers
+          Real-time flow data for {stats.total} rivers{homeRegion ? ` in ${homeRegion}` : ''}
         </p>
       </div>
 
@@ -163,6 +162,7 @@ export default async function RiversPage() {
         rivers={rivers}
         rosterRiverIds={rosterRiverIds}
         isAuthenticated={isAuthenticated}
+        homeRegion={homeRegion}
       />
     </div>
   );
