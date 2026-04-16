@@ -30,53 +30,61 @@
   --color-sage:                hsl(var(--sage));
   --color-stone-warm:          hsl(var(--stone-warm));
   --color-slate-navy:          hsl(var(--slate-navy));
+
+  /* Typography — expose Fraunces as the serif display face */
+  --font-sans:  var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), ui-serif, Georgia, "Times New Roman", serif;
 }
 
 @layer base {
-  /* ─── StreamFlows — Premium Light Theme (default) ─── */
+  /* ─── StreamFlows — Editorial Outdoor (default light theme) ───────────────
+     Warmer parchment grounds, deeper ink foreground, status colors shifted
+     toward earthier tones (moss / ember / brick / dry-slate) while keeping
+     the green / amber / red / blue semantic mapping guides already know.
+  ─────────────────────────────────────────────────────────────────────────── */
   :root {
-    --background:   40 20% 97%;        /* warm off-white */
-    --foreground:   220 30% 18%;       /* dark slate */
+    --background:   36 28% 95%;        /* warm parchment */
+    --foreground:   215 40% 14%;       /* deep ink with a hint of slate */
 
-    --card:         0 0% 100%;         /* pure white cards */
-    --card-foreground: 220 30% 18%;
+    --card:         40 30% 98%;        /* off-white, slightly warmer than pure */
+    --card-foreground: 215 40% 14%;
 
-    --popover:      0 0% 100%;
-    --popover-foreground: 220 30% 18%;
+    --popover:      40 30% 98%;
+    --popover-foreground: 215 40% 14%;
 
-    --primary:      200 65% 38%;       /* river blue - deep teal-blue */
-    --primary-foreground: 0 0% 100%;
+    --primary:      198 60% 32%;       /* deeper river teal — more gravitas */
+    --primary-foreground: 40 30% 98%;
 
-    --secondary:    40 15% 93%;        /* warm stone */
-    --secondary-foreground: 220 30% 18%;
+    --secondary:    36 22% 90%;        /* warm stone */
+    --secondary-foreground: 215 40% 14%;
 
-    --muted:        40 12% 94%;        /* subtle warm gray */
-    --muted-foreground: 220 12% 50%;   /* readable mid-gray */
+    --muted:        36 18% 92%;        /* subtle warm ground */
+    --muted-foreground: 220 12% 42%;   /* deeper mid-gray for readability */
 
-    --accent:       155 30% 42%;       /* sage/olive green */
-    --accent-foreground: 0 0% 100%;
+    --accent:       148 35% 32%;       /* moss — deeper than sage, earthier */
+    --accent-foreground: 40 30% 98%;
 
-    --destructive:  0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive:  8 62% 46%;         /* brick red, not SaaS alarm red */
+    --destructive-foreground: 40 30% 98%;
 
-    --border:       220 15% 88%;       /* subtle cool border */
-    --input:        220 15% 88%;
-    --ring:         200 65% 38%;       /* matches primary */
+    --border:       36 18% 85%;        /* warm hairline — visible but quiet */
+    --input:        36 18% 85%;
+    --ring:         198 60% 32%;
 
     --radius: 0.625rem;
 
-    /* Status semantic tokens */
-    --status-optimal:      152 60% 40%;
-    --status-elevated:     38 85% 48%;
-    --status-high:         0 75% 55%;
-    --status-low:          213 80% 52%;
-    --status-ice:          199 80% 48%;
+    /* Status semantic tokens — earthier takes on the green/amber/red system */
+    --status-optimal:      148 45% 32%;  /* moss */
+    --status-elevated:     28 75% 44%;   /* ember */
+    --status-high:         8 62% 46%;    /* brick */
+    --status-low:          208 45% 44%;  /* dry slate-blue */
+    --status-ice:          200 40% 46%;
 
     /* Extended brand palette */
-    --river-blue:   200 65% 38%;
-    --sage:         155 30% 42%;
-    --stone-warm:   35 25% 90%;
-    --slate-navy:   220 30% 18%;
+    --river-blue:   198 60% 32%;
+    --sage:         148 35% 32%;
+    --stone-warm:   36 25% 88%;
+    --slate-navy:   215 40% 14%;
   }
 }
 
@@ -84,13 +92,33 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
 
+  /* Editorial h1 — page titles pick up the serif automatically. h2 / h3
+     stay sans to keep dense surfaces legible; pass-2 will selectively opt
+     specific surfaces (river names, section headers) into serif via the
+     Tailwind-generated `font-serif` utility. */
+  h1 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-variation-settings: "opsz" 36;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  /* Selection — tinted to match primary instead of browser blue */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+
   /* Native select styling for light theme */
   select option {
-    background-color: white;
-    color: hsl(220, 30%, 18%);
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
   }
 }

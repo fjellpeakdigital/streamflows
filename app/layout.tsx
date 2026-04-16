@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Open_Sans } from "next/font/google";
+import { Open_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
@@ -29,6 +29,15 @@ const openSans = Open_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+// Editorial display face — used for page titles, section headlines, river
+// names. Variable font so we can tune weight and optical size per usage.
+const fraunces = Fraunces({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  axes: ["opsz"],
   display: "swap",
 });
 
@@ -165,7 +174,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${openSans.variable} font-sans antialiased`}>
+      <body className={`${openSans.variable} ${fraunces.variable} font-sans antialiased`}>
         {showSidebar ? (
           <>
             <Sidebar
