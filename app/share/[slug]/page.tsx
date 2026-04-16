@@ -43,6 +43,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
       .order('timestamp', { ascending: true }),
     supabase
       .from('river_checkins').select('*').eq('river_id', river.id).eq('is_public', true)
+      .not('conditions_rating', 'is', null)
       .order('fished_at', { ascending: false }).limit(5),
   ]);
 

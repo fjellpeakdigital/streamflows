@@ -113,6 +113,7 @@ export default async function DashboardPage() {
       .from('river_checkins')
       .select('river_id, conditions_rating')
       .eq('is_public', true)
+      .not('conditions_rating', 'is', null)
       .in('river_id', rosterIds)
       .gte('fished_at', sevenDaysAgo.toISOString()),
     supabase

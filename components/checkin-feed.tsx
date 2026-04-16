@@ -9,7 +9,7 @@ interface CheckinEntry {
   id: string;
   user_id: string;
   fished_at: string;
-  conditions_rating: FishingRating;
+  conditions_rating: FishingRating | null;
   flow_confirmed: string;
   species_caught: string[] | null;
   flies_working: string | null;
@@ -68,7 +68,9 @@ export default function CheckinFeed({ initialCheckins, riverId }: CheckinFeedPro
   return (
     <div className="space-y-3">
       {checkins.map((c) => {
-        const style = RATING_STYLES[c.conditions_rating] ?? RATING_STYLES.fair;
+        const style = c.conditions_rating
+          ? RATING_STYLES[c.conditions_rating]
+          : { label: 'Scouting', badge: 'bg-slate-100 text-slate-700 border-slate-200' };
         const flowNote = FLOW_LABELS[c.flow_confirmed] ?? '';
         const date = formatDistanceToNow(new Date(c.fished_at), { addSuffix: true });
 

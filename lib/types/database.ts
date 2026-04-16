@@ -11,8 +11,8 @@ export interface CheckIn {
   user_id: string;
   /** Did the gauge reading match what the angler observed on the water? */
   flow_confirmed: FlowAccuracy;
-  /** Overall fishing conditions rating */
-  conditions_rating: FishingRating;
+  /** Overall fishing conditions rating. Null for scouting entries with no rod in the water. */
+  conditions_rating: FishingRating | null;
   /** Species the angler was targeting / caught */
   species_caught: string[] | null;
   /** Flies, patterns, or techniques that worked */
@@ -24,6 +24,16 @@ export interface CheckIn {
   /** When the angler actually fished (defaults to created_at) */
   fished_at: string;
   created_at: string;
+  /** Client or party label — redacted from other users' view when is_public=true */
+  client_name: string | null;
+  /** Party size — redacted from other users' view when is_public=true */
+  party_size: number | null;
+  /** Back-link to a planned trip, if this log is tied to one */
+  trip_id: string | null;
+  /** Flow snapshot (CFS) at the moment the entry was saved */
+  flow_at_log: number | null;
+  /** Water temp snapshot (°F) at the moment the entry was saved */
+  temp_at_log: number | null;
 }
 
 export interface River {

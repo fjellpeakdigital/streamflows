@@ -79,6 +79,7 @@ async function getRivers() {
     .from('river_checkins')
     .select('river_id, conditions_rating')
     .eq('is_public', true)
+    .not('conditions_rating', 'is', null)
     .gte('fished_at', sevenDaysAgo.toISOString());
 
   // Aggregate: score each rating, average per river → back to label

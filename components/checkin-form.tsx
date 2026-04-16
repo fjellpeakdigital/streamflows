@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { X, Droplets, Fish, Wind } from 'lucide-react';
+import { X, Droplets, Fish, Users, Wind } from 'lucide-react';
 import type { FishingRating, FlowAccuracy } from '@/lib/types/database';
 
 interface CheckinFormProps {
@@ -38,7 +38,9 @@ export default function CheckinForm({ riverId, onSuccess, onCancel }: CheckinFor
   const [fliesWorking, setFliesWorking] = useState('');
   const [notes, setNotes]               = useState('');
   const [fishedAt, setFishedAt]         = useState(today);
-  const [isPublic, setIsPublic]         = useState(true);
+  const [isPublic, setIsPublic]         = useState(false);
+  const [clientName, setClientName]     = useState('');
+  const [partySize, setPartySize]       = useState('');
   const [saving, setSaving]             = useState(false);
   const [error, setError]               = useState<string | null>(null);
 
@@ -72,6 +74,8 @@ export default function CheckinForm({ riverId, onSuccess, onCancel }: CheckinFor
           notes: notes || null,
           is_public: isPublic,
           fished_at: new Date(fishedAt + 'T12:00:00').toISOString(),
+          client_name: clientName.trim() || null,
+          party_size: partySize.trim() === '' ? null : Number(partySize),
         }),
       });
 
@@ -162,6 +166,33 @@ export default function CheckinForm({ riverId, onSuccess, onCancel }: CheckinFor
                 </span>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* Client (for guide journal) */}
+        <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
+          <div>
+            <label className="block text-sm font-medium mb-1.5">
+              <Users className="inline h-3.5 w-3.5 mr-1 opacity-70" />
+              Client / party <span className="font-normal text-muted-foreground">(optional, private)</span>
+            </label>
+            <Input
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="e.g. Moser party, Walk-in"
+              className="h-10 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Party size</label>
+            <Input
+              type="number"
+              min={0}
+              value={partySize}
+              onChange={(e) => setPartySize(e.target.value)}
+              placeholder="–"
+              className="h-10 text-sm"
+            />
           </div>
         </div>
 

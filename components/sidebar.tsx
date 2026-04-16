@@ -8,14 +8,13 @@ import {
   ArrowRight,
   Bell,
   BookOpenText,
-  CalendarDays,
+  BookText,
   CalendarRange,
   Map,
   LogOut,
   Plus,
   Search,
   Settings,
-  StickyNote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateStatus, getStatusDotColor } from '@/lib/river-utils';
@@ -30,9 +29,9 @@ interface SidebarProps {
 }
 
 const toolLinks = [
+  { href: '/journal', label: 'Journal', icon: BookText },
   { href: '/hatches', label: 'Hatch calendar', icon: BookOpenText },
   { href: '/rivers', label: 'Browse rivers', icon: Map },
-  { href: '/notes', label: 'Client notes', icon: StickyNote },
   { href: '/alerts', label: 'Alert manager', icon: Bell },
 ];
 
