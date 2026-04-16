@@ -22,7 +22,7 @@ interface RiversListProps {
   rivers: RiverWithCondition[];
   rosterRiverIds?: string[];
   isAuthenticated?: boolean;
-  homeRegion?: string;
+  homeRegions?: string[];
 }
 
 const SORT_ORDER: Record<RiverStatus, number> = {
@@ -48,7 +48,7 @@ export function RiversList({
   rivers,
   rosterRiverIds = [],
   isAuthenticated = false,
-  homeRegion,
+  homeRegions = [],
 }: RiversListProps) {
   const router = useRouter();
   const [mode, setMode] = useState<'roster' | 'discover'>(
@@ -58,9 +58,33 @@ export function RiversList({
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
   const [searchQuery, setSearchQuery] = useState('');
+  // Single-select fallback for users with 0 home regions (legacy/no-scope).
   const [regionFilter, setRegionFilter] = useState('all');
+  // Multi-select chip filter: only used when the user scopes to 2+ home regions.
+  // Empty set = no narrowing (show all home regions).
+  const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState('all');
   const [speciesFilter, setSpeciesFilter] = useState('all');
+
+  const toggleRegion = (region: string) => {
+    setSelectedRegions((prev) => {
+      const next = new Set(prev);
+      if (next.has(region)) next.delete(region);
+      else next.add(region);
+      return next;
+    });
+  };
+
+  // How the region filter should behave depends on how many home regions the user has:
+  //   0 → legacy single-select dropdown over every region in the data
+  //   1 → no filter UI at all (scope is already a single region)
+  //   2+ → multi-select chips, one per home region
+  const regionFilterMode: 'none' | 'single-select' | 'chips' =
+    homeRegions.length === 0
+      ? 'single-select'
+      : homeRegions.length === 1
+        ? 'none'
+        : 'chips';
 
   const [localRoster, setLocalRoster] = useState<Set<string>>(
     () => new Set(rosterRiverIds)
@@ -125,7 +149,8 @@ export function RiversList({
         )
           return false;
       }
-      if (regionFilter !== 'all' && river.region !== regionFilter) return false;
+      if (regionFilterMode === 'single-select' && regionFilter !== 'all' && river.region !== regionFilter) return false;
+      if (regionFilterMode === 'chips' && selectedRegions.size > 0 && !selectedRegions.has(river.region)) return false;
       if (mode === 'discover' && statusFilter !== 'all') {
         const s = river.current_condition?.status ?? 'unknown';
         if (s !== statusFilter) return false;
@@ -136,17 +161,19 @@ export function RiversList({
       return true;
     });
     return [...result].sort(sortByStatus);
-  }, [sourceRivers, mode, searchQuery, regionFilter, statusFilter, speciesFilter]);
+  }, [sourceRivers, mode, searchQuery, regionFilterMode, regionFilter, selectedRegions, statusFilter, speciesFilter]);
 
   const hasFilters =
     (mode === 'discover' && searchQuery) ||
-    regionFilter !== 'all' ||
+    (regionFilterMode === 'single-select' && regionFilter !== 'all') ||
+    (regionFilterMode === 'chips' && selectedRegions.size > 0) ||
     (mode === 'discover' && statusFilter !== 'all') ||
     speciesFilter !== 'all';
 
   const clearFilters = () => {
     setSearchQuery('');
     setRegionFilter('all');
+    setSelectedRegions(new Set());
     setStatusFilter('all');
     setSpeciesFilter('all');
   };
@@ -245,15 +272,60 @@ export function RiversList({
               </div>
             )}
 
+            {regionFilterMode === 'chips' && homeRegions.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Regions
+                    {selectedRegions.size > 0 && (
+                      <span className="ml-1.5 text-foreground normal-case tracking-normal">
+                        ({selectedRegions.size} selected)
+                      </span>
+                    )}
+                  </span>
+                  {selectedRegions.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRegions(new Set())}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {homeRegions.map((r) => {
+                    const active = selectedRegions.has(r);
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => toggleRegion(r)}
+                        aria-pressed={active}
+                        className={cn(
+                          'px-3 py-1 text-sm rounded-full border transition-colors',
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                        )}
+                      >
+                        {r}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div
               className={cn(
                 'grid grid-cols-1 gap-3',
-                homeRegion
-                  ? mode === 'discover' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'
-                  : mode === 'discover' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                regionFilterMode === 'single-select'
+                  ? mode === 'discover' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                  : mode === 'discover' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'
               )}
             >
-              {!homeRegion && (
+              {regionFilterMode === 'single-select' && (
                 <Select
                   value={regionFilter}
                   onChange={(e) => setRegionFilter(e.target.value)}

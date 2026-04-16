@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
 import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
 import { getStatusDotColor, getStatusLabel, calculateStatus } from '@/lib/river-utils';
+import { getUserHomeRegions, formatHomeRegionsLabel } from '@/lib/user-regions';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +11,15 @@ async function getRivers() {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  const homeRegion = user?.user_metadata?.home_region as string | undefined;
+  const homeRegions = getUserHomeRegions(user);
 
   let riversQuery = supabase.from('rivers').select('*').order('name').limit(5000);
-  if (homeRegion) riversQuery = riversQuery.eq('region', homeRegion);
+  if (homeRegions.length > 0) riversQuery = riversQuery.in('region', homeRegions);
   const { data: rivers, error: riversError } = await riversQuery;
 
   if (riversError) {
     console.error('Error fetching rivers:', riversError);
-    return { rivers: [], rosterRiverIds: [], isAuthenticated: false, homeRegion: undefined };
+    return { rivers: [], rosterRiverIds: [], isAuthenticated: false, homeRegions: [] as string[] };
   }
 
   const { data: conditions } = await supabase
@@ -101,7 +102,7 @@ async function getRivers() {
     return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };
   });
 
-  return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user, homeRegion };
+  return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user, homeRegions };
 }
 
 async function getStats(rivers: RiverWithCondition[]) {
@@ -123,18 +124,29 @@ export default async function RiversPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/beta');
 
-  const { rivers, rosterRiverIds, isAuthenticated, homeRegion } = await getRivers();
+  const { rivers, rosterRiverIds, isAuthenticated, homeRegions } = await getRivers();
   const stats = await getStats(rivers);
+  const regionsLabel = formatHomeRegionsLabel(homeRegions);
 
   return (
     <div className="container mx-auto px-4 py-8">
 
       {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">River Conditions</h1>
-        <p className="text-muted-foreground text-sm">
-          Real-time flow data for {stats.total} rivers{homeRegion ? ` in ${homeRegion}` : ''}
-        </p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">River Conditions</h1>
+          <p className="text-muted-foreground text-sm">
+            Real-time flow data for {stats.total} rivers{regionsLabel ? ` in ${regionsLabel}` : ''}
+          </p>
+        </div>
+        {homeRegions.length > 0 && (
+          <a
+            href="/account#regions"
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+          >
+            Manage regions
+          </a>
+        )}
       </div>
 
       {/* Status summary bar */}
@@ -162,7 +174,7 @@ export default async function RiversPage() {
         rivers={rivers}
         rosterRiverIds={rosterRiverIds}
         isAuthenticated={isAuthenticated}
-        homeRegion={homeRegion}
+        homeRegions={homeRegions}
       />
     </div>
   );

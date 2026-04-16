@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { UserCircle, Shield } from 'lucide-react';
+import { UserCircle, Shield, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { AVAILABLE_REGIONS, getUserHomeRegions } from '@/lib/user-regions';
 
 type Feedback = { type: 'success' | 'error'; message: string } | null;
 
@@ -24,6 +26,12 @@ export default function AccountPage() {
 
   const [signingOutAll, setSigningOutAll] = useState(false);
 
+  // Regions
+  const [savedRegions, setSavedRegions] = useState<string[]>([]);
+  const [draftRegions, setDraftRegions] = useState<Set<string>>(new Set());
+  const [savingRegions, setSavingRegions] = useState(false);
+  const [regionFeedback, setRegionFeedback] = useState<Feedback>(null);
+
   useEffect(() => {
     let cancelled = false;
     supabase.auth.getUser().then(({ data, error }) => {
@@ -33,6 +41,9 @@ export default function AccountPage() {
         return;
       }
       setEmail(data.user.email ?? null);
+      const regions = getUserHomeRegions(data.user);
+      setSavedRegions(regions);
+      setDraftRegions(new Set(regions));
       setChecking(false);
     });
     return () => {
@@ -40,6 +51,50 @@ export default function AccountPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const toggleDraftRegion = (region: string) => {
+    setRegionFeedback(null);
+    setDraftRegions((prev) => {
+      const next = new Set(prev);
+      if (next.has(region)) next.delete(region);
+      else next.add(region);
+      return next;
+    });
+  };
+
+  const draftRegionsArray = Array.from(draftRegions);
+  const regionsDirty =
+    draftRegionsArray.length !== savedRegions.length ||
+    draftRegionsArray.some((r) => !savedRegions.includes(r));
+
+  const handleSaveRegions = async () => {
+    setRegionFeedback(null);
+    if (draftRegions.size === 0) {
+      setRegionFeedback({ type: 'error', message: 'Pick at least one region.' });
+      return;
+    }
+    setSavingRegions(true);
+    // Preserve any pre-existing user_metadata keys; updateUser merges shallowly.
+    // Also write the legacy `home_region` to the first selection so older code
+    // paths that still read the singular field don't break.
+    const sorted = AVAILABLE_REGIONS.filter((r) => draftRegions.has(r));
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        home_regions: sorted,
+        home_region: sorted[0],
+      },
+    });
+    setSavingRegions(false);
+    if (error) {
+      setRegionFeedback({ type: 'error', message: error.message });
+      return;
+    }
+    setSavedRegions(sorted);
+    setDraftRegions(new Set(sorted));
+    setRegionFeedback({ type: 'success', message: 'Regions updated.' });
+    // Refresh server components so the rivers page picks up the new scope.
+    router.refresh();
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +224,75 @@ export default function AccountPage() {
             {savingPassword ? 'Saving…' : 'Update password'}
           </Button>
         </form>
+      </section>
+
+      <section
+        id="regions"
+        className="bg-card border border-border rounded-xl p-5 space-y-4 scroll-mt-8"
+      >
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide">Regions</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Pick the regions you guide on. The rivers page and discover view are
+          scoped to these — add more here to expand what you can browse and add
+          to your roster.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {AVAILABLE_REGIONS.map((region) => {
+            const checked = draftRegions.has(region);
+            return (
+              <label
+                key={region}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors',
+                  checked
+                    ? 'border-primary bg-primary/5 text-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleDraftRegion(region)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/40"
+                />
+                <span className="flex-1">{region}</span>
+              </label>
+            );
+          })}
+        </div>
+
+        {regionFeedback && (
+          <p
+            className={
+              regionFeedback.type === 'success'
+                ? 'text-sm text-emerald-700'
+                : 'text-sm text-red-600'
+            }
+          >
+            {regionFeedback.message}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-xs text-muted-foreground">
+            {draftRegions.size === 0
+              ? 'No regions selected.'
+              : draftRegions.size === 1
+                ? '1 region selected.'
+                : `${draftRegions.size} regions selected.`}
+          </p>
+          <Button
+            type="button"
+            onClick={handleSaveRegions}
+            disabled={!regionsDirty || savingRegions}
+          >
+            {savingRegions ? 'Saving…' : 'Save regions'}
+          </Button>
+        </div>
       </section>
 
       <section className="bg-card border border-red-200 rounded-xl p-5 space-y-3">

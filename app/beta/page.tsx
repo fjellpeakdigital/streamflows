@@ -115,7 +115,11 @@ export default function BetaPage() {
         password: signupPassword,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: { full_name: signupName.trim(), home_region: signupRegion },
+          data: {
+            full_name: signupName.trim(),
+            home_region: signupRegion,
+            home_regions: [signupRegion],
+          },
         },
       });
       if (error) {
