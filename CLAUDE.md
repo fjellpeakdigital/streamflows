@@ -82,16 +82,34 @@ supabase/
 ## Database tables (current schema)
 
 ```
-rivers            — id, name, slug, usgs_station_id, region, description, optimal_flow_min, optimal_flow_max, latitude, longitude, gauge_type
+rivers            — id, name, slug, usgs_station_id, region, description, optimal_flow_min, optimal_flow_max, latitude, longitude, gauge_type, nwm_reach_id, action_stage, flood_stage, cwms_location_id, cwms_office, cwms_location_kind
 conditions        — id, river_id, timestamp, flow, temperature, gage_height, status, trend
-user_favorites    — id, user_id, river_id, created_at   ← thin, no metadata
-user_notes        — id, user_id, river_id, note, updated_at, created_at   ← no condition snapshot
+                    ← status CHECK constraint must include every value in RiverStatus type. Currently:
+                       'optimal', 'elevated', 'high', 'low', 'ice_affected', 'no_data', 'unknown'
+user_favorites    — id, user_id, river_id, created_at   ← legacy; new code uses user_roster
+user_roster       — id, user_id, river_id, species, optimal_flow_min_override, optimal_flow_max_override,
+                    access_notes, designation, sort_order, archived, created_at, updated_at
+user_notes        — id, user_id, river_id, note, flow_at_save, temp_at_save, updated_at, created_at
 user_alerts       — id, user_id, river_id, alert_type, threshold_value, is_active, created_at, updated_at
 river_checkins    — id, river_id, user_id, flow_confirmed, conditions_rating, species_caught, flies_working, notes, is_public, fished_at, created_at
 river_species     — id, river_id, species
+trips             — id, user_id, trip_date, client_count, target_river_id, backup_river_id, status, ...
+hatch_events      — id, river_id, insect, start_month, start_day, end_month, end_day, notes
 ```
 
-All new migrations go in `supabase/migrations/` as timestamped SQL files.
+User-level settings live in Supabase `auth.users.user_metadata` (a JSON blob), NOT in
+a custom table:
+- `home_region: string` (legacy, single-value) — written by beta signup
+- `home_regions: string[]` (current) — written by beta signup + account page
+- `full_name: string`
+
+Always read home regions via `getUserHomeRegions()` in `lib/user-regions.ts`. It
+normalizes both shapes to a string array and falls back to `[]` when neither is set.
+
+All new migrations go in `supabase/migrations/` as timestamped SQL files. **Migrations
+do not auto-apply on push to main** — Supabase's GitHub integration only runs them on
+PR merges. For one-off main-branch pushes, run the SQL manually in Supabase Dashboard
+→ SQL Editor.
 
 ---
 
@@ -161,12 +179,71 @@ OPEN_WEATHER_MAP_API_KEY   (used by lib/weather.ts)
 
 ---
 
+## Gotchas (read this before debugging "missing data" or "wrong status")
+
+These are the operational landmines that have bitten us. Each one cost real time to
+diagnose; future you will thank present you for skimming this list first.
+
+### Conditions queries on the rivers page MUST be scoped to visible rivers
+`app/rivers/page.tsx` once issued an unscoped `select('*').limit(10000)` against the
+`conditions` table. With 1,500+ rivers updating hourly, 10k rows is only ~6 hours of
+global data — home-region-scoped users would see most of their rivers as Unknown
+because their conditions fell outside the slice. **Always pass the visible river IDs
+through `.in('river_id', riverIds)` plus a time filter (currently 7d to accommodate
+USGS DV publish lag).**
+
+### `conditions.status` CHECK constraint must mirror the `RiverStatus` TS type
+The TypeScript type and the Postgres CHECK constraint are two separate sources of
+truth. Adding a new status value (e.g. `'no_data'`) requires both a TS edit *and* a
+migration to drop+recreate `conditions_status_check`. Inserts that violate the
+constraint fail silently inside the cron's per-row fallback and the affected rivers
+appear permanently Unknown on the UI. If you ever see "Unknown" rivers that should
+have data, check the cron's `errors[]` for `conditions_status_check` rejections
+before anything else.
+
+### Per-user optimal range overrides exist but are only honored on the river detail page
+`user_roster.optimal_flow_min_override` and `_max_override` are real columns. The
+detail page (`app/rivers/[slug]/page.tsx`) reads them and merges with the global
+`rivers.optimal_flow_min/max` to produce an effective range that drives status calc,
+ETA, NWM forecast, and chart shading. **The dashboard, rivers-list status counts, and
+backup-river scorer all still use the global values only.** If you change roster
+overrides anywhere, fix all three call sites or the user will see inconsistent
+status across pages.
+
+### `home_region` (singular) and `home_regions` (array) both exist
+Legacy users have only `home_region: string` in `user_metadata`. Newer users get
+`home_regions: string[]`. The account page writes both for backward compatibility.
+**Never read either field directly.** Use `getUserHomeRegions(user)` from
+`lib/user-regions.ts` — it normalizes both shapes and is the single source of truth.
+
+### Supabase migrations don't auto-apply to prod from main pushes
+The Supabase GitHub integration only runs migrations on PR merges (it creates a
+preview branch per PR). When you push directly to main, **the migration file lands
+in the repo but the prod database doesn't see it.** You have to run the SQL
+manually in Supabase Dashboard → SQL Editor. This is a real footgun for "I'll just
+push a quick migration" workflows.
+
+### `detect-gauge-types` cron is too conservative
+It probes USGS IV in default mode (latest sample only) with no P7D retry. Any
+realtime gauge that briefly lapsed during the probe gets misclassified as `daily`,
+which means the daily cron then can't get DV data for it (it's an IV-only gauge),
+and the river ends up with no conditions at all. The `fetch-data` cron has the
+correct retry-with-P7D logic; copy that pattern when you next touch detection.
+
+### Variable shadowing in long functions
+`app/rivers/page.tsx::getRivers()` already has a `sevenDaysAgo` later in the
+function for the check-ins query. If you add a second time-window const at the top,
+**don't reuse the same name** — SWC rejects duplicate let-bindings in the same
+scope and Next build fails. Use a distinct name like `conditionsCutoff`.
+
+---
+
 ## Redesign phase tracker
 
 Update this section after completing each task.
 
 **Current phase:** Phase 4 — COMPLETE  
-**Last completed task:** "Set trip day" shortcut on river detail (2026-04-14)
+**Last completed task:** Multi-region home scoping + per-user optimal range overrides + conditions reliability fixes (2026-04-16)
 
 ### Phase 1 checklist — COMPLETE ✓
 - [x] Fix -999,999 sentinel → `'no_data'` status (`lib/river-utils.ts`, `lib/types/database.ts`)
