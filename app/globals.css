@@ -31,9 +31,9 @@
   --color-stone-warm:          hsl(var(--stone-warm));
   --color-slate-navy:          hsl(var(--slate-navy));
 
-  /* Typography — expose Fraunces as the serif display face */
-  --font-sans:  var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-serif), ui-serif, Georgia, "Times New Roman", serif;
+  /* Typography — Inter exposed via next/font, inlined so `font-sans`
+     utilities inherit the real face instead of the system fallback. */
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -97,16 +97,11 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Editorial h1 — page titles pick up the serif automatically. h2 / h3
-     stay sans to keep dense surfaces legible; pass-2 will selectively opt
-     specific surfaces (river names, section headers) into serif via the
-     Tailwind-generated `font-serif` utility. */
-  h1 {
-    font-family: var(--font-serif);
-    font-weight: 600;
-    font-variation-settings: "opsz" 36;
+  /* Tighter headline tracking — Inter looks sharper with slight negative
+     letter-spacing at display sizes. Balanced wrapping keeps page titles
+     from leaving orphan words on a second line. */
+  h1, h2 {
     letter-spacing: -0.015em;
-    line-height: 1.1;
     text-wrap: balance;
   }
 

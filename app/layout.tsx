@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Open_Sans, Fraunces } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
@@ -25,19 +25,12 @@ export const getCachedUser = cache(async () => {
 });
 
 
-const openSans = Open_Sans({
+// Inter — the de facto modern app sans. Variable font, excellent at small
+// sizes, sharper hinting than Open Sans. Exposed as --font-sans so every
+// existing `font-sans` usage picks it up automatically.
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-// Editorial display face — used for page titles, section headlines, river
-// names. Variable font so we can tune weight and optical size per usage.
-const fraunces = Fraunces({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  axes: ["opsz"],
   display: "swap",
 });
 
@@ -174,7 +167,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${openSans.variable} ${fraunces.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         {showSidebar ? (
           <>
             <Sidebar
