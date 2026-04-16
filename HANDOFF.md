@@ -66,10 +66,34 @@ Switched from dark navy theme to premium light theme with outdoorsy, fishing-for
 
 ### 5. Optimal Range Calculation
 
-- `/api/cron/calculate-ranges` — Fetches 1 year of USGS DV data, calculates P25/P75 as optimal range
-- Also calculated ranges from stored conditions via SQL (PERCENTILE_CONT)
-- **Coverage**: 1,477 of 1,552 rivers have optimal ranges (95%)
-- Remaining 75 have no discharge data in USGS
+**Updated approach (two-stage):**
+
+1. **Stage 1 — USGS Daily Values (5-year window):** Fetches `period=P5Y` daily discharge data, requires ≥30 valid readings, calculates P25/P75. Covers ~1,477 of 1,552 stations.
+2. **Stage 2 — NWIS Statistics Service (fallback):** For stations where DV returns no data, calls `waterservices.usgs.gov/nwis/stat/?statReportType=annual` which returns USGS pre-calculated annual percentiles (based on their full historical record). Extracts `00025` (P25) and `00075` (P75) stat codes per site, takes the median across all available years.
+
+**Coverage target:** All stations with any USGS discharge record. The ~75 stations that fail both stages have no USGS discharge data at all and are candidates for deletion.
+
+**Running the cron:**
+- Normal (missing ranges only): `GET /api/cron/calculate-ranges?secret=CRON_SECRET`
+- Force (recalculate ALL rivers): `GET /api/cron/calculate-ranges?secret=CRON_SECRET&force=true`
+
+**Response includes** `permanently_missing` array listing stations that failed both stages — use this to identify dead gauges.
+
+**Cleanup SQL (run after the cron to remove dead gauges):**
+```sql
+-- Verify which rivers still have no ranges
+SELECT name, usgs_station_id, region
+FROM rivers
+WHERE optimal_flow_min IS NULL OR optimal_flow_max IS NULL
+ORDER BY region, name;
+
+-- Delete rivers with no flow data (and their conditions/roster entries via CASCADE)
+DELETE FROM rivers
+WHERE optimal_flow_min IS NULL OR optimal_flow_max IS NULL;
+```
+
+- **Previous coverage**: 1,477 of 1,552 rivers (95%)
+- Remaining 75 have no discharge data in USGS at all
 
 ### 6. Status Calculation Fixes
 
