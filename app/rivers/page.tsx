@@ -137,7 +137,7 @@ async function getStats(rivers: RiverWithCondition[]) {
   return { total: rivers.length, statusCounts };
 }
 
-const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'unknown'];
+const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'no_data', 'unknown'];
 
 export default async function RiversPage() {
   // Auth gate — must be logged in to see river data
