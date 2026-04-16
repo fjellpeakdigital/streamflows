@@ -2,7 +2,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const startTime = Date.now();
@@ -25,9 +25,12 @@ export async function GET(request: Request) {
 
     const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
 
-    const { error, count } = await supabase
+    // Use plain .delete() without { count: 'exact' } — the count option causes PostgREST
+    // to wrap the DELETE in a RETURNING subquery that is subject to the max-rows API limit,
+    // which would silently cap deletions at ~5000 rows per run.
+    const { error } = await supabase
       .from('conditions')
-      .delete({ count: 'exact' })
+      .delete()
       .lt('timestamp', cutoff);
 
     if (error) {
@@ -35,13 +38,12 @@ export async function GET(request: Request) {
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`[cron:prune] Deleted ${count ?? 0} conditions older than ${cutoff} in ${totalTime}ms`);
+    console.log(`[cron:prune] Pruned conditions older than ${cutoff} in ${totalTime}ms`);
 
     return NextResponse.json({
       success: true,
       cron: 'prune-conditions',
       cutoff,
-      deleted: count ?? 0,
       duration_ms: totalTime,
     });
   } catch (error: any) {

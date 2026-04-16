@@ -114,26 +114,17 @@ export async function GET(request: Request) {
       results.push({ river: river.name, flow: siteData.flow, temperature: siteData.temperature, status });
     }
 
-    // Batch insert with duplicate fallback
     if (inserts.length > 0) {
       const insertStart = Date.now();
-      const { error: insertError } = await supabase.from('conditions').insert(inserts);
+      const { error: upsertError } = await supabase
+        .from('conditions')
+        .upsert(inserts, { onConflict: 'river_id,timestamp' });
 
-      if (insertError) {
-        console.log(`[cron:daily] Batch insert failed, falling back to individual: ${insertError.message}`);
-        let inserted = 0;
-        for (const row of inserts) {
-          const { error: rowError } = await supabase.from('conditions').insert(row);
-          if (rowError && rowError.code !== '23505') {
-            const name = rivers.find((r) => r.id === row.river_id)?.name ?? row.river_id;
-            errors.push(`INSERT ${name}: ${JSON.stringify(rowError)}`);
-          } else if (!rowError) {
-            inserted++;
-          }
-        }
-        console.log(`[cron:daily] Individual inserts: ${inserted}/${inserts.length} in ${Date.now() - insertStart}ms`);
+      if (upsertError) {
+        errors.push(`Upsert failed: ${upsertError.message}`);
+        console.error(`[cron:daily] Upsert error: ${upsertError.message}`);
       } else {
-        console.log(`[cron:daily] Batch insert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
+        console.log(`[cron:daily] Upsert: ${inserts.length} rows in ${Date.now() - insertStart}ms`);
       }
     }
 
