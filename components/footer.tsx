@@ -42,7 +42,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/beta" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Get Started
                 </Link>
               </li>
