@@ -4,8 +4,20 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { Droplets, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+
+const US_STATES = [
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
+  'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
+  'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
+  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+];
 
 type Mode = 'login' | 'signup';
 
@@ -20,6 +32,8 @@ export default function BetaPage() {
   const [loginError, setLoginError]       = useState<string | null>(null);
 
   // Signup state
+  const [signupName, setSignupName]                       = useState('');
+  const [signupState, setSignupState]                     = useState('');
   const [signupEmail, setSignupEmail]                     = useState('');
   const [signupPassword, setSignupPassword]               = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
@@ -64,6 +78,14 @@ export default function BetaPage() {
     e.preventDefault();
     setSignupError(null);
 
+    if (!signupName.trim()) {
+      setSignupError('Please enter your name');
+      return;
+    }
+    if (!signupState) {
+      setSignupError('Please select your state');
+      return;
+    }
     if (signupPassword !== signupConfirmPassword) {
       setSignupError('Passwords do not match');
       return;
@@ -94,7 +116,10 @@ export default function BetaPage() {
       const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { full_name: signupName.trim(), state: signupState },
+        },
       });
       if (error) {
         if (
@@ -240,6 +265,38 @@ export default function BetaPage() {
                     {signupError}
                   </div>
                 )}
+                <div>
+                  <label htmlFor="signup-name" className="block text-sm font-medium mb-1.5">
+                    Name
+                  </label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    autoComplete="name"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    placeholder="Your full name"
+                    required
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="signup-state" className="block text-sm font-medium mb-1.5">
+                    State
+                  </label>
+                  <Select
+                    id="signup-state"
+                    value={signupState}
+                    onChange={(e) => setSignupState(e.target.value)}
+                    required
+                    className="h-11"
+                  >
+                    <option value="" disabled>Select your state</option>
+                    {US_STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </Select>
+                </div>
                 <div>
                   <label htmlFor="signup-email" className="block text-sm font-medium mb-1.5">
                     Email
