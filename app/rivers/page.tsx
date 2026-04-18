@@ -4,6 +4,7 @@ import { RiversList } from './rivers-list';
 import { FishingRating, RiverWithCondition, RiverStatus, UserFavorite } from '@/lib/types/database';
 import { getStatusDotColor, getStatusLabel, calculateStatus, pickLatestUsableCondition } from '@/lib/river-utils';
 import { getUserHomeRegions, formatHomeRegionsLabel } from '@/lib/user-regions';
+import { isSuppressedFromDiscovery } from '@/lib/river-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,8 @@ async function getRivers() {
   // staleness threshold.
   const conditionsCutoff = new Date();
   conditionsCutoff.setDate(conditionsCutoff.getDate() - 7);
+  const usableConditionsCutoff = new Date();
+  usableConditionsCutoff.setHours(usableConditionsCutoff.getHours() - 72);
 
   const { data: conditions } = scopedRiverIds.length > 0
     ? await supabase
@@ -99,6 +102,9 @@ async function getRivers() {
   const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
     const riverConditions = conditions?.filter((c) => c.river_id === river.id) || [];
     const currentCondition = pickLatestUsableCondition(riverConditions);
+    const hasUsableDataIn72h =
+      currentCondition !== null &&
+      new Date(currentCondition.timestamp).getTime() >= usableConditionsCutoff.getTime();
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
     const trend = currentCondition?.trend ?? 'unknown';
     const is_favorite = favorites.some((f) => f.river_id === river.id);
@@ -121,7 +127,16 @@ async function getRivers() {
       ? { label: LABEL[Math.round(agg.total / agg.count)], count: agg.count }
       : undefined;
 
-    return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };
+    return {
+      ...river,
+      current_condition: currentCondition,
+      species: riverSpecies,
+      trend,
+      is_favorite,
+      angler_rating,
+      hidden_from_discover: isSuppressedFromDiscovery(river.usgs_station_id),
+      no_usable_data_72h: !hasUsableDataIn72h,
+    };
   });
 
   return { rivers: riversWithConditions, rosterRiverIds, isAuthenticated: !!user, homeRegions };
@@ -131,11 +146,12 @@ async function getStats(rivers: RiverWithCondition[]) {
   const statusCounts: Record<RiverStatus, number> = {
     optimal: 0, elevated: 0, high: 0, low: 0, ice_affected: 0, no_data: 0, unknown: 0,
   };
-  rivers.forEach((river) => {
+  const discoverableRivers = rivers.filter((river) => !river.hidden_from_discover);
+  discoverableRivers.forEach((river) => {
     const status = river.current_condition?.status ?? 'unknown';
     statusCounts[status as RiverStatus]++;
   });
-  return { total: rivers.length, statusCounts };
+  return { total: discoverableRivers.length, statusCounts };
 }
 
 const STATUS_ORDER: RiverStatus[] = ['optimal', 'elevated', 'high', 'low', 'ice_affected', 'no_data', 'unknown'];

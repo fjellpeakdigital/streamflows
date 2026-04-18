@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Search, SlidersHorizontal, X, LayoutGrid, List, Heart, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSuppressedDiscoveryRiverCount } from '@/lib/river-visibility';
 import {
   getStatusLabel,
   getStatusBorderColor,
@@ -126,7 +127,13 @@ export function RiversList({
     [rivers, rosterSet]
   );
 
-  const sourceRivers = mode === 'roster' ? rosterRivers : rivers;
+  const discoverRivers = useMemo(
+    () => rivers.filter((r) => !r.hidden_from_discover),
+    [rivers]
+  );
+
+  const sourceRivers = mode === 'roster' ? rosterRivers : discoverRivers;
+  const suppressedDiscoverCount = useMemo(() => getSuppressedDiscoveryRiverCount(), []);
 
   const regions = useMemo(() => {
     return Array.from(new Set(sourceRivers.map((r) => r.region))).sort();
@@ -270,6 +277,12 @@ export function RiversList({
                   className="pl-9 bg-background"
                 />
               </div>
+            )}
+
+            {mode === 'discover' && suppressedDiscoverCount > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Hiding {suppressedDiscoverCount} rivers with no usable upstream flow in the last week.
+              </p>
             )}
 
             {regionFilterMode === 'chips' && homeRegions.length > 0 && (

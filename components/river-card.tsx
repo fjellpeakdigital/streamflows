@@ -44,6 +44,7 @@ export function RiverCard({
   const status = condition?.status || 'low';
   const trend = river.trend || 'stable';
   const anglerRating = river.angler_rating;
+  const gaugeNotResponding = river.no_usable_data_72h ?? false;
   const conditionsHistory = (
     river as RiverWithCondition & { conditions?: Condition[] }
   ).conditions;
@@ -122,6 +123,12 @@ export function RiverCard({
               <Clock className="h-3 w-3" />
               {etaLabel}
             </div>
+          )}
+
+          {gaugeNotResponding && (
+            <p className="text-xs font-medium text-muted-foreground">
+              Gauge isn&apos;t responding. No usable readings in 72h.
+            </p>
           )}
 
           {/* Flow + Temp stats */}
