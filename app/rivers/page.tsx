@@ -36,6 +36,8 @@ async function getRivers() {
   // staleness threshold.
   const conditionsCutoff = new Date();
   conditionsCutoff.setDate(conditionsCutoff.getDate() - 7);
+  const usableConditionsCutoff = new Date();
+  usableConditionsCutoff.setHours(usableConditionsCutoff.getHours() - 72);
 
   const { data: conditions } = scopedRiverIds.length > 0
     ? await supabase
@@ -100,6 +102,9 @@ async function getRivers() {
   const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
     const riverConditions = conditions?.filter((c) => c.river_id === river.id) || [];
     const currentCondition = pickLatestUsableCondition(riverConditions);
+    const hasUsableDataIn72h =
+      currentCondition !== null &&
+      new Date(currentCondition.timestamp).getTime() >= usableConditionsCutoff.getTime();
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
     const trend = currentCondition?.trend ?? 'unknown';
     const is_favorite = favorites.some((f) => f.river_id === river.id);
@@ -130,6 +135,7 @@ async function getRivers() {
       is_favorite,
       angler_rating,
       hidden_from_discover: isSuppressedFromDiscovery(river.usgs_station_id),
+      no_usable_data_72h: !hasUsableDataIn72h,
     };
   });
 
