@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RiverWithCondition } from '@/lib/types/database';
+import { type Condition, RiverWithCondition } from '@/lib/types/database';
 import {
   getStatusColor,
   getStatusLabel,
@@ -43,10 +44,18 @@ export function RiverCard({
   const status = condition?.status || 'low';
   const trend = river.trend || 'stable';
   const anglerRating = river.angler_rating;
-  const conditionsHistory = (river as any).conditions as any[] | undefined;
+  const conditionsHistory = (
+    river as RiverWithCondition & { conditions?: Condition[] }
+  ).conditions;
   const etaLabel = conditionsHistory
     ? calculateFlowEta(conditionsHistory, river.optimal_flow_min, river.optimal_flow_max).label
     : '';
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   return (
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
@@ -166,7 +175,7 @@ export function RiverCard({
               <Clock className="h-2.5 w-2.5" />
               <span>
                 {(() => {
-                  const age = Date.now() - new Date(condition.timestamp).getTime();
+                  const age = now - new Date(condition.timestamp).getTime();
                   const mins = Math.floor(age / 60000);
                   if (mins < 60) return `${mins}m ago`;
                   const hours = Math.floor(mins / 60);

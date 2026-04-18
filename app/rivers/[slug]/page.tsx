@@ -2,12 +2,15 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fetchWeatherForecast } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
-import { calculateStatus } from '@/lib/river-utils';
-import { fetchHistoricalFlow } from '@/lib/usgs-historical';
-import { fetchNWMForecast } from '@/lib/nwm-forecast';
+import { calculateStatus, pickLatestUsableCondition } from '@/lib/river-utils';
+import { fetchHistoricalFlow, type HistoricalFlow } from '@/lib/usgs-historical';
+import { fetchNWMForecast, type NWMForecast } from '@/lib/nwm-forecast';
+import type { CheckIn, CheckInWithMeta } from '@/lib/types/database';
 import { RiverDetail } from './river-detail';
 
 export const dynamic = 'force-dynamic';
+
+type RiverCheckin = CheckInWithMeta & { is_own: boolean };
 
 async function getRiver(slug: string) {
   const supabase = await createClient();
@@ -163,9 +166,9 @@ async function getRiver(slug: string) {
 
   // Use the most recent condition from either the 72h window or the dedicated
   // latest-condition query (handles gauges that haven't reported recently).
-  const latestFromWindow = allConditions[allConditions.length - 1] ?? null;
+  const latestFromWindow = pickLatestUsableCondition([...allConditions].reverse());
   const latestFromQuery  = latestConditionRes.data ?? null;
-  let currentCondition =
+  const currentCondition =
     latestFromWindow ?? latestFromQuery;
 
   // Always recalculate status from live flow — stored status can be stale
@@ -185,14 +188,15 @@ async function getRiver(slug: string) {
   let eta     = calculateFlowEta(allConditions, river.optimal_flow_min, river.optimal_flow_max);
 
   // ── 5. Checkins ───────────────────────────────────────────────────────────────
-  const checkins = (checkinsRawRes.data ?? []).map((c: any) => ({
+  const checkins: RiverCheckin[] = ((checkinsRawRes.data ?? []) as CheckIn[]).map((c) => ({
     ...c,
     is_own:       user?.id === c.user_id,
     display_name: user?.id === c.user_id ? 'You' : 'Angler',
   }));
 
   const [historical_last_year, historical_two_years_ago, nwmForecast] =
-    (historicalRes as [any, any, any]) ?? [null, null, null];
+    (historicalRes as [HistoricalFlow | null, HistoricalFlow | null, NWMForecast | null]) ??
+    [null, null, null];
 
   // Override trend-based ETA with NWM forecast when available — the linear
   // extrapolation is unreliable when a storm spike is between now and optimal.

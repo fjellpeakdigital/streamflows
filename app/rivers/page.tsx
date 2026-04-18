@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
-import { RiverWithCondition, RiverStatus } from '@/lib/types/database';
-import { getStatusDotColor, getStatusLabel, calculateStatus } from '@/lib/river-utils';
+import { FishingRating, RiverWithCondition, RiverStatus, UserFavorite } from '@/lib/types/database';
+import { getStatusDotColor, getStatusLabel, calculateStatus, pickLatestUsableCondition } from '@/lib/river-utils';
 import { getUserHomeRegions, formatHomeRegionsLabel } from '@/lib/user-regions';
 
 export const dynamic = 'force-dynamic';
@@ -54,7 +54,7 @@ async function getRivers() {
         .limit(10000)
     : { data: [] };
 
-  let favorites: any[] = [];
+  let favorites: Pick<UserFavorite, 'river_id'>[] = [];
   let rosterRiverIds: string[] = [];
   if (user) {
     const { data: favData } = await supabase
@@ -68,7 +68,7 @@ async function getRivers() {
       .select('river_id')
       .eq('user_id', user.id)
       .eq('archived', false);
-    rosterRiverIds = (rosterData || []).map((r: any) => r.river_id);
+    rosterRiverIds = (rosterData || []).map((r: { river_id: string }) => r.river_id);
   }
 
   // Fetch all public check-ins from the last 7 days in one query
@@ -84,7 +84,7 @@ async function getRivers() {
 
   // Aggregate: score each rating, average per river → back to label
   const SCORE: Record<string, number> = { poor: 1, fair: 2, good: 3, excellent: 4 };
-  const LABEL: string[] = ['poor', 'poor', 'fair', 'good', 'excellent']; // index 0 unused
+  const LABEL: FishingRating[] = ['poor', 'poor', 'fair', 'good', 'excellent']; // index 0 unused
 
   const checkinMap = new Map<string, { total: number; count: number }>();
   for (const c of recentCheckins ?? []) {
@@ -98,7 +98,7 @@ async function getRivers() {
 
   const riversWithConditions: RiverWithCondition[] = rivers.map((river) => {
     const riverConditions = conditions?.filter((c) => c.river_id === river.id) || [];
-    const currentCondition = riverConditions[0];
+    const currentCondition = pickLatestUsableCondition(riverConditions);
     const riverSpecies = species?.filter((s) => s.river_id === river.id) || [];
     const trend = currentCondition?.trend ?? 'unknown';
     const is_favorite = favorites.some((f) => f.river_id === river.id);
@@ -118,7 +118,7 @@ async function getRivers() {
 
     const agg = checkinMap.get(river.id);
     const angler_rating = agg
-      ? { label: LABEL[Math.round(agg.total / agg.count)] as any, count: agg.count }
+      ? { label: LABEL[Math.round(agg.total / agg.count)], count: agg.count }
       : undefined;
 
     return { ...river, current_condition: currentCondition, species: riverSpecies, trend, is_favorite, angler_rating };

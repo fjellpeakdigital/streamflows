@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { calculateStatus } from '@/lib/river-utils';
 import { getCachedUser } from '@/app/layout';
 import { TripsClient } from './trips-client';
-import type { RiverStatus } from '@/lib/types/database';
+import type { Condition, RiverStatus } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,20 @@ export interface TripRow {
   target_river: { name: string; slug: string } | null;
   backup_river: { name: string; slug: string } | null;
 }
+
+interface RiverOptionRow {
+  id: string;
+  name: string;
+  slug: string;
+  optimal_flow_min: number | null;
+  optimal_flow_max: number | null;
+}
+
+interface RosterRow {
+  river_id: string;
+}
+
+type LatestConditionRow = Pick<Condition, 'river_id' | 'flow' | 'status' | 'timestamp'>;
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -62,12 +76,10 @@ export default async function TripsPage() {
       .order('trip_date', { ascending: false }),
   ]);
 
-  const rosterIdSet = new Set(
-    (rosterRows ?? []).map((r: any) => r.river_id as string)
-  );
+  const rosterIdSet = new Set((rosterRows ?? []).map((r: RosterRow) => r.river_id));
 
   // Conditions must be chained off the resolved roster IDs.
-  const latestByRiver = new Map<string, any>();
+  const latestByRiver = new Map<string, LatestConditionRow>();
   if (rosterIdSet.size > 0) {
     const seventyTwoHoursAgo = new Date();
     seventyTwoHoursAgo.setHours(seventyTwoHoursAgo.getHours() - 72);
@@ -83,7 +95,7 @@ export default async function TripsPage() {
     }
   }
 
-  const rosterOptions: RosterRiverOption[] = (allRivers ?? []).map((r: any) => {
+  const rosterOptions: RosterRiverOption[] = ((allRivers ?? []) as RiverOptionRow[]).map((r) => {
     const cond = latestByRiver.get(r.id);
     const status = (cond
       ? cond.status ??

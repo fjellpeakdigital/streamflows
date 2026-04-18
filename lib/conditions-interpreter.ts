@@ -193,7 +193,7 @@ function buildCurrentSignal(input: InterpreterInput): ConditionSignal {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildOutlookSignal(input: InterpreterInput): ConditionSignal {
-  const { flow, trend, status, optimalMin, optimalMax, cwmsLocationKind, reservoirReleaseCfs } = input;
+  const { flow, trend, optimalMin, optimalMax, cwmsLocationKind, reservoirReleaseCfs } = input;
 
   const isDam = cwmsLocationKind === 'PROJECT' && reservoirReleaseCfs !== null && flow !== null && flow > 0;
 
@@ -449,7 +449,7 @@ function computeActionTip(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function interpretConditions(input: InterpreterInput): ConditionsInterpretation {
-  const { flow, temperature, status, trend, optimalMin, optimalMax, cwmsLocationKind, reservoirReleaseCfs } = input;
+  const { flow, temperature, status, trend, cwmsLocationKind, reservoirReleaseCfs } = input;
 
   const currentSignal = buildCurrentSignal(input);
   const outlookSignal = buildOutlookSignal(input);

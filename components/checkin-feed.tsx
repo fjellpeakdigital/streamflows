@@ -20,8 +20,9 @@ interface CheckinEntry {
 }
 
 interface CheckinFeedProps {
-  initialCheckins: CheckinEntry[];
+  checkins: CheckinEntry[];
   riverId: string;
+  onDelete?: (id: string) => void;
 }
 
 const RATING_STYLES: Record<FishingRating, { label: string; badge: string }> = {
@@ -37,8 +38,8 @@ const FLOW_LABELS: Record<string, string> = {
   unsure:     '',
 };
 
-export default function CheckinFeed({ initialCheckins, riverId }: CheckinFeedProps) {
-  const [checkins, setCheckins] = useState<CheckinEntry[]>(initialCheckins);
+export default function CheckinFeed({ checkins, riverId, onDelete }: CheckinFeedProps) {
+  void riverId;
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -50,7 +51,7 @@ export default function CheckinFeed({ initialCheckins, riverId }: CheckinFeedPro
         body: JSON.stringify({ id }),
       });
       if (res.ok) {
-        setCheckins((prev) => prev.filter((c) => c.id !== id));
+        onDelete?.(id);
       }
     } finally {
       setDeletingId(null);

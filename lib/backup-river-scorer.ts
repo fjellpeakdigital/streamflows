@@ -1,7 +1,17 @@
-import type { RiverWithCondition, RiverStatus, FlowTrend } from '@/lib/types/database';
+import type { Condition, FlowTrend, RiverStatus } from '@/lib/types/database';
+
+export interface BackupRiverCandidate {
+  id: string;
+  name: string;
+  slug: string;
+  latitude: number | null;
+  longitude: number | null;
+  current_condition: Condition | null;
+  trend?: FlowTrend | null;
+}
 
 export interface BackupRiverScore {
-  river: RiverWithCondition;
+  river: BackupRiverCandidate;
   score: number;
   distanceMi: number | null;
   rationale: string;
@@ -73,7 +83,7 @@ function trendLabel(trend: FlowTrend): string {
 }
 
 export function scoreBackupRiver(
-  rivers: RiverWithCondition[],
+  rivers: BackupRiverCandidate[],
   primaryRiverId: string
 ): BackupRiverScore | null {
   if (rivers.length < 2) return null;

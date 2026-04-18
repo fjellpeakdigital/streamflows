@@ -80,8 +80,9 @@ export async function GET(request: Request) {
       update_errors: updateErrors,
       errors,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in detect-gauge-types:', error);
-    return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
+    return NextResponse.json({ success: false, error: message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }

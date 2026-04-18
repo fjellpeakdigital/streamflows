@@ -92,7 +92,7 @@ export function RiversList({
 
   const handleToggleRoster = async (riverId: string) => {
     if (!isAuthenticated) {
-      window.location.href = '/login';
+      router.push('/login');
       return;
     }
     const inRoster = localRoster.has(riverId);

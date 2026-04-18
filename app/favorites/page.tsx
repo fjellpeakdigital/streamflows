@@ -1,17 +1,16 @@
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiverCard } from '@/components/river-card';
 import { RiverWithCondition } from '@/lib/types/database';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Heart } from 'lucide-react';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 async function getFavoriteRivers() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const user = await requireUser();
 
   const { data: favorites } = await supabase
     .from('user_favorites').select('river_id').eq('user_id', user.id);

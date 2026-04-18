@@ -63,54 +63,84 @@ function toCoord(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
 function parseLocations(body: unknown, office: string): CwmsLocation[] {
   if (!body || typeof body !== 'object') return [];
   const b = body as Record<string, unknown>;
 
   // Shape 1: { locations: { location: [...] } }
-  const v1 = (b as any)?.locations?.location;
+  const locationsRecord = asRecord(b.locations);
+  const v1 = locationsRecord?.location;
   if (Array.isArray(v1)) {
     return v1
-      .map((loc: any) => ({
-        name: String(loc.name ?? loc['location-id'] ?? ''),
-        officeId: String(loc['office-id'] ?? loc.officeId ?? office),
-        latitude: toCoord(loc.latitude ?? loc.lat),
-        longitude: toCoord(loc.longitude ?? loc.lon),
-        locationKind: String(loc['location-kind'] ?? loc.locationKind ?? ''),
-        stateInitial: String(loc['state-initial'] ?? loc.stateInitial ?? ''),
-        description: loc.description ? String(loc.description) : null,
-      }))
+      .map((loc) => {
+        const locRecord = asRecord(loc);
+        return {
+          name: String(locRecord?.name ?? locRecord?.['location-id'] ?? ''),
+          officeId: String(locRecord?.['office-id'] ?? locRecord?.officeId ?? office),
+          latitude: toCoord(locRecord?.latitude ?? locRecord?.lat),
+          longitude: toCoord(locRecord?.longitude ?? locRecord?.lon),
+          locationKind: String(locRecord?.['location-kind'] ?? locRecord?.locationKind ?? ''),
+          stateInitial: String(locRecord?.['state-initial'] ?? locRecord?.stateInitial ?? ''),
+          description: locRecord?.description ? String(locRecord.description) : null,
+        };
+      })
       .filter(l => l.name);
   }
 
   // Shape 2: { entries: [...] }  (CWMS v2 catalog)
-  const v2 = (b as any)?.entries;
+  const v2 = b.entries;
   if (Array.isArray(v2)) {
     return v2
-      .map((entry: any) => ({
-        name: String(entry.name ?? entry['location-id'] ?? ''),
-        officeId: String(entry.office ?? entry['office-id'] ?? office),
-        latitude: toCoord(entry.latitude ?? entry.lat),
-        longitude: toCoord(entry.longitude ?? entry.lon),
-        locationKind: entry['location-kind'] ?? entry.locationKind ?? null,
-        stateInitial: entry['state-initial'] ?? entry.stateInitial ?? null,
-        description: entry.description ?? null,
-      }))
+      .map((entry) => {
+        const entryRecord = asRecord(entry);
+        return {
+          name: String(entryRecord?.name ?? entryRecord?.['location-id'] ?? ''),
+          officeId: String(entryRecord?.office ?? entryRecord?.['office-id'] ?? office),
+          latitude: toCoord(entryRecord?.latitude ?? entryRecord?.lat),
+          longitude: toCoord(entryRecord?.longitude ?? entryRecord?.lon),
+          locationKind: typeof entryRecord?.['location-kind'] === 'string'
+            ? entryRecord['location-kind']
+            : typeof entryRecord?.locationKind === 'string'
+              ? entryRecord.locationKind
+              : null,
+          stateInitial: typeof entryRecord?.['state-initial'] === 'string'
+            ? entryRecord['state-initial']
+            : typeof entryRecord?.stateInitial === 'string'
+              ? entryRecord.stateInitial
+              : null,
+          description: entryRecord?.description ? String(entryRecord.description) : null,
+        };
+      })
       .filter(l => l.name);
   }
 
   // Shape 3: top-level array
   if (Array.isArray(body)) {
-    return (body as any[])
-      .map((loc: any) => ({
-        name: String(loc.name ?? loc['location-id'] ?? ''),
-        officeId: String(loc['office-id'] ?? loc.officeId ?? office),
-        latitude: toCoord(loc.latitude ?? loc.lat),
-        longitude: toCoord(loc.longitude ?? loc.lon),
-        locationKind: loc['location-kind'] ?? loc.locationKind ?? null,
-        stateInitial: loc['state-initial'] ?? loc.stateInitial ?? null,
-        description: loc.description ?? null,
-      }))
+    return body
+      .map((loc) => {
+        const locRecord = asRecord(loc);
+        return {
+          name: String(locRecord?.name ?? locRecord?.['location-id'] ?? ''),
+          officeId: String(locRecord?.['office-id'] ?? locRecord?.officeId ?? office),
+          latitude: toCoord(locRecord?.latitude ?? locRecord?.lat),
+          longitude: toCoord(locRecord?.longitude ?? locRecord?.lon),
+          locationKind: typeof locRecord?.['location-kind'] === 'string'
+            ? locRecord['location-kind']
+            : typeof locRecord?.locationKind === 'string'
+              ? locRecord.locationKind
+              : null,
+          stateInitial: typeof locRecord?.['state-initial'] === 'string'
+            ? locRecord['state-initial']
+            : typeof locRecord?.stateInitial === 'string'
+              ? locRecord.stateInitial
+              : null,
+          description: locRecord?.description ? String(locRecord.description) : null,
+        };
+      })
       .filter(l => l.name);
   }
 
@@ -153,28 +183,29 @@ function parseTsValues(body: unknown): TsReading[] {
   let rawValues: unknown[] | null = null;
 
   // Shape A: { values: [[epoch_ms, val, qc], ...] }
-  if (Array.isArray((b as any).values)) {
-    rawValues = (b as any).values;
+  if (Array.isArray(b.values)) {
+    rawValues = b.values;
   }
 
   // Shape B: { regular-interval-values: { values: [...] } }
-  const riv = (b as any)['regular-interval-values'];
+  const riv = asRecord(b['regular-interval-values']);
   if (!rawValues && riv && Array.isArray(riv.values)) {
     rawValues = riv.values;
   }
 
   // Shape C: { irregular-interval-values: { values: [...] } }
-  const iiv = (b as any)['irregular-interval-values'];
+  const iiv = asRecord(b['irregular-interval-values']);
   if (!rawValues && iiv && Array.isArray(iiv.values)) {
     rawValues = iiv.values;
   }
 
   // Shape D: nested entry array
-  const entry = (b as any)?.['time-series']?.entry;
+  const timeSeries = asRecord(b['time-series']);
+  const entry = timeSeries?.entry;
   if (!rawValues && Array.isArray(entry) && entry.length > 0) {
-    const nested = entry[0];
-    const nriv = nested?.['regular-interval-values'];
-    const niiv = nested?.['irregular-interval-values'];
+    const nested = asRecord(entry[0]);
+    const nriv = asRecord(nested?.['regular-interval-values']);
+    const niiv = asRecord(nested?.['irregular-interval-values']);
     if (nriv && Array.isArray(nriv.values)) rawValues = nriv.values;
     else if (niiv && Array.isArray(niiv.values)) rawValues = niiv.values;
   }
@@ -318,14 +349,18 @@ async function fetchTsCatalog(
     `&pageSize=200`;
   const body = await fetchJson(url, timeoutMs);
   if (!body || typeof body !== 'object') return [];
-  const entries = (body as any)?.entries;
+  const bodyRecord = body as Record<string, unknown>;
+  const entries = bodyRecord.entries;
   if (!Array.isArray(entries)) return [];
   return entries
-    .map((e: any) => ({
-      name:     String(e.name ?? ''),
-      units:    String(e.units ?? ''),
-      interval: String(e.interval ?? ''),
-    }))
+    .map((entry) => {
+      const entryRecord = asRecord(entry);
+      return {
+        name: String(entryRecord?.name ?? ''),
+        units: String(entryRecord?.units ?? ''),
+        interval: String(entryRecord?.interval ?? ''),
+      };
+    })
     .filter(e => e.name);
 }
 

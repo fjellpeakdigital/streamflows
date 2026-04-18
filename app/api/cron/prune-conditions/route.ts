@@ -44,10 +44,11 @@ export async function GET(request: Request) {
       deleted: count ?? 0,
       duration_ms: totalTime,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in prune-conditions cron:', error);
     return NextResponse.json(
-      { success: false, error: error.message, duration_ms: Date.now() - startTime },
+      { success: false, error: message, duration_ms: Date.now() - startTime },
       { status: 500 }
     );
   }

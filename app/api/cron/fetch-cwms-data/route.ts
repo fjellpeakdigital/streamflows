@@ -72,8 +72,9 @@ export async function GET(request: Request) {
       catalog = catalogRes.ok
         ? await catalogRes.json()
         : { _httpStatus: catalogRes.status, _url: catalogUrl };
-    } catch (err: any) {
-      catalog = { error: err.message };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      catalog = { error: message };
     }
 
     // 2. Probe each candidate TSID
@@ -96,8 +97,9 @@ export async function GET(request: Request) {
         });
         const body = res.ok ? await res.json() : { _httpStatus: res.status, _url: url };
         probes[param] = { status: res.status, body };
-      } catch (err: any) {
-        probes[param] = { error: err.message, url };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        probes[param] = { error: message, url };
       }
     }
 
@@ -164,8 +166,9 @@ export async function GET(request: Request) {
         noData++;
         console.log(`[fetch-cwms-data] ${river.name} (${river.cwms_location_id}): no data`);
       }
-    } catch (err: any) {
-      errors.push(`${river.name}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`${river.name}: ${message}`);
     }
   }
 

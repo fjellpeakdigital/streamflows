@@ -82,8 +82,9 @@ async function fetchHistoricalBatch(
     }
 
     console.log(`[ranges] Got historical flows for ${flowsBySite.size}/${siteIds.length} sites`);
-  } catch (error: any) {
-    errors.push(`USGS DV history error: ${error?.message ?? String(error)}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`USGS DV history error: ${message}`);
   }
 
   return flowsBySite;
@@ -211,8 +212,9 @@ export async function GET(request: Request) {
       errors,
       results: updateResults,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in calculate-ranges:', error);
-    return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
+    return NextResponse.json({ success: false, error: message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }

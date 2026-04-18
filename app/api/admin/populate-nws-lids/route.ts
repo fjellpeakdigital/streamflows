@@ -193,10 +193,11 @@ export async function GET(request: Request) {
         : 'skipped',
       duration_ms: duration,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error('[populate-nws-lids] Error:', err);
     return NextResponse.json(
-      { success: false, error: err.message, duration_ms: Date.now() - startTime },
+      { success: false, error: message, duration_ms: Date.now() - startTime },
       { status: 500 }
     );
   }

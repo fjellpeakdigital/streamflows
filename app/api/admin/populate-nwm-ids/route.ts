@@ -78,10 +78,11 @@ export async function GET(request: Request) {
       not_found_samples: notFoundSamples,
       duration_ms: totalTime,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in populate-nwm-ids:', error);
     return NextResponse.json(
-      { success: false, error: error.message, duration_ms: Date.now() - startTime },
+      { success: false, error: message, duration_ms: Date.now() - startTime },
       { status: 500 }
     );
   }

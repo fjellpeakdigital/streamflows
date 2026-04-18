@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Menu, X, Droplets, Heart, Bell, Map, Compass, Users, LayoutDashboard } from 'lucide-react';
@@ -23,7 +24,7 @@ const allNavLinks: NavLink[] = [
   { href: '/alerts', label: 'Alerts', icon: Bell, authRequired: true },
 ];
 
-export function Navigation({ user }: { user: any }) {
+export function Navigation({ user }: { user: User | null }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 

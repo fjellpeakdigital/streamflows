@@ -1,20 +1,13 @@
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AlertsList } from './alerts-list';
 import { Bell } from 'lucide-react';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 async function getUserAlerts() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await requireUser();
 
   // Get user's alerts with river information
   const { data: alerts } = await supabase

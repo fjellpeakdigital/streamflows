@@ -11,7 +11,13 @@ import {
 } from '@/lib/river-utils';
 import type { FlowEta } from '@/lib/flow-eta';
 import type { WeatherForecast } from '@/lib/weather';
-import type { RiverStatus, FlowTrend, AlertType } from '@/lib/types/database';
+import type {
+  AlertType,
+  Condition,
+  FishingRating,
+  FlowTrend,
+  RiverStatus,
+} from '@/lib/types/database';
 import { ArrowRight, Bell, CalendarDays, CheckCircle2, LayoutDashboard, SlidersHorizontal, StickyNote, Users, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -25,9 +31,9 @@ interface DashboardRiver {
   optimal_flow_max: number | null;
   latitude: number | null;
   longitude: number | null;
-  current_condition: any;
-  trend: string;
-  angler_rating?: { label: string; count: number };
+  current_condition: Condition | null;
+  trend: FlowTrend;
+  angler_rating?: { label: FishingRating; count: number };
   eta: FlowEta;
   weather: WeatherForecast | null;
   active_hatches?: string[];
@@ -397,7 +403,6 @@ export function GuideDashboard({
   notesByRiver,
   nextTrip,
   backup,
-  user,
 }: {
   rivers: DashboardRiver[];
   alerts: DashboardAlert[];
@@ -405,9 +410,7 @@ export function GuideDashboard({
   notesByRiver: Record<string, string>;
   nextTrip: NextTrip | null;
   backup: BackupSuggestion | null;
-  user: any;
 }) {
-  void user;
   const [scope, setScope] = useState<'mine' | 'ne'>('mine');
 
   if (rivers.length === 0) {
@@ -439,7 +442,7 @@ export function GuideDashboard({
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-b border-border mb-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-base sm:text-xl font-bold truncate min-w-0 shrink">
-            Today's conditions
+            Today&apos;s conditions
             <span className="hidden sm:inline text-muted-foreground font-normal">
               {' '}— {format(new Date(), 'EEE MMM d')}
             </span>

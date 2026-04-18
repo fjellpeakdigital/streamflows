@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { cache } from "react";
 import type { Condition, River, RiverWithCondition } from "@/lib/types/database";
+import type { User } from '@supabase/supabase-js';
+import { pickLatestUsableCondition } from "@/lib/river-utils";
 
 /**
  * Cached per-request Supabase user lookup. Import from this module anywhere
@@ -90,8 +92,14 @@ async function getRosterRivers(userId: string): Promise<{
       return { rivers: [], lastSyncedAt: null };
     }
 
-    const rivers = roster
-      .map((r: any) => r.rivers as River | null)
+    type RosterRow = {
+      river_id: string;
+      sort_order: number;
+      rivers: River[] | null;
+    };
+
+    const rivers = (roster as RosterRow[])
+      .map((r) => r.rivers?.[0] ?? null)
       .filter((r): r is River => r !== null);
 
     const riverIds = rivers.map((r) => r.id);
@@ -106,13 +114,19 @@ async function getRosterRivers(userId: string): Promise<{
       .gte('timestamp', seventyTwoHoursAgo.toISOString())
       .order('timestamp', { ascending: false });
 
-    const latestByRiver = new Map<string, Condition>();
+    const conditionsByRiver = new Map<string, Condition[]>();
     if (conditions) {
       for (const c of conditions as Condition[]) {
-        if (!latestByRiver.has(c.river_id)) {
-          latestByRiver.set(c.river_id, c);
-        }
+        const entries = conditionsByRiver.get(c.river_id) ?? [];
+        entries.push(c);
+        conditionsByRiver.set(c.river_id, entries);
       }
+    }
+
+    const latestByRiver = new Map<string, Condition>();
+    for (const [riverId, riverConditions] of conditionsByRiver.entries()) {
+      const latest = pickLatestUsableCondition(riverConditions);
+      if (latest) latestByRiver.set(riverId, latest);
     }
 
     let lastSyncedAt: string | null = null;
@@ -138,7 +152,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let user: { id: string; email?: string | null } | null = null;
+  let user: User | null = null;
   const { data, error } = await getCachedUser();
   if (!error && data?.user && typeof data.user.id === 'string' && data.user.id.length > 0) {
     user = data.user;

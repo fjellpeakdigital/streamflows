@@ -99,6 +99,16 @@ export async function GET(request: Request) {
         continue;
       }
 
+      const hasObservedValue =
+        siteData.flow !== null ||
+        siteData.temperature !== null ||
+        siteData.gageHeight !== null;
+      if (!hasObservedValue) {
+        noDataCount++;
+        errors.push(`${river.name}: IV response contained no usable values`);
+        continue;
+      }
+
       // Note: we used to hard-skip samples older than 24h, which kept a
       // stale row frozen whenever a gauge had a reporting gap. Insert the
       // row regardless; the UI flags anything older than ~2h via
@@ -172,8 +182,9 @@ export async function GET(request: Request) {
       errors,
       results,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in realtime cron:', error);
-    return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
+    return NextResponse.json({ success: false, error: message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }

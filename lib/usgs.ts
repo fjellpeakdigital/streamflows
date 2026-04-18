@@ -87,7 +87,8 @@ export function parseUSGSResponse(
     let flow: number | null = null;
     let temperature: number | null = null;
     let gageHeight: number | null = null;
-    let timestamp = new Date().toISOString();
+    let timestamp: string | null = null;
+    let hasAnyObservedValue = false;
 
     for (const series of seriesList) {
       const paramCode = series.variable.variableCode[0].value;
@@ -96,6 +97,7 @@ export function parseUSGSResponse(
 
       const latestValue = values[values.length - 1];
       timestamp = latestValue.dateTime;
+      hasAnyObservedValue = true;
 
       if (paramCode === '00060') {
         flow = parseFloat(latestValue.value);
@@ -106,6 +108,10 @@ export function parseUSGSResponse(
         gageHeight = parseFloat(latestValue.value);
       }
     }
+
+    // Skip sites where USGS returned empty series only. Treating those as
+    // "fresh" no-data rows masks the last real reading across the app.
+    if (!hasAnyObservedValue || !timestamp) continue;
 
     siteDataMap.set(siteId, { flow, temperature, gageHeight, timestamp, source });
   }
@@ -140,8 +146,9 @@ export async function fetchUSGSBatch(
     const result = parseUSGSResponse(data, endpoint);
     console.log(`[cron] USGS ${endpoint.toUpperCase()} batch: ${result.size}/${siteIds.length} sites returned data`);
     return result;
-  } catch (error: any) {
-    errors.push(`USGS ${endpoint} batch error: ${error?.message ?? String(error)}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`USGS ${endpoint} batch error: ${message}`);
     return new Map();
   }
 }

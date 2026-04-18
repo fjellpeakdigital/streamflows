@@ -6,7 +6,7 @@ import { calculateStatus, getStatusColor, getStatusLabel, formatFlow, formatTemp
 import WeatherStrip from '@/components/weather-strip';
 import { Badge } from '@/components/ui/badge';
 import { Droplets, TrendingUp, TrendingDown, Minus, Clock, ExternalLink, Fish } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';

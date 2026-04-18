@@ -33,7 +33,7 @@ export interface GaugeData {
 const NWPS_BASE = 'https://api.water.noaa.gov/nwps/v1';
 const HADS_URL = 'https://hads.ncep.noaa.gov/USGS/ALL_USGS-HADS_SITES.txt';
 
-async function fetchJson(url: string, timeoutMs = 10_000): Promise<any | null> {
+async function fetchJson(url: string, timeoutMs = 10_000): Promise<unknown | null> {
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -114,25 +114,33 @@ export async function fetchGaugeData(usgsStationId: string): Promise<GaugeData> 
     return { nwsLid: null, stages: null };
   }
 
+  const bodyRecord = body as Record<string, unknown>;
+
   // NWS LID lives at body.lid
-  const nwsLid = typeof body.lid === 'string' && body.lid.length > 0
-    ? body.lid
+  const nwsLid = typeof bodyRecord.lid === 'string' && bodyRecord.lid.length > 0
+    ? bodyRecord.lid
     : null;
 
   // Flood stages live at body.flood.categories.{action|minor|moderate|major}.stage
-  const cats = body?.flood?.categories;
+  const flood = bodyRecord.flood as Record<string, unknown> | undefined;
+  const cats = flood?.categories as Record<string, unknown> | undefined;
   if (!cats || typeof cats !== 'object') {
     return { nwsLid, stages: null };
   }
 
-  const action   = toNum(cats.action?.stage   ?? null);
-  const flood    = toNum(cats.minor?.stage    ?? null); // NOAA calls this "minor"
-  const moderate = toNum(cats.moderate?.stage ?? null);
-  const major    = toNum(cats.major?.stage    ?? null);
+  const actionCategory = cats.action as Record<string, unknown> | undefined;
+  const minorCategory = cats.minor as Record<string, unknown> | undefined;
+  const moderateCategory = cats.moderate as Record<string, unknown> | undefined;
+  const majorCategory = cats.major as Record<string, unknown> | undefined;
+
+  const action = toNum(actionCategory?.stage ?? null);
+  const floodStage = toNum(minorCategory?.stage ?? null);
+  const moderate = toNum(moderateCategory?.stage ?? null);
+  const major = toNum(majorCategory?.stage ?? null);
 
   const stages: FloodStages | null =
-    action !== null || flood !== null || moderate !== null || major !== null
-      ? { action, flood, moderate, major }
+    action !== null || floodStage !== null || moderate !== null || major !== null
+      ? { action, flood: floodStage, moderate, major }
       : null;
 
   return { nwsLid, stages };

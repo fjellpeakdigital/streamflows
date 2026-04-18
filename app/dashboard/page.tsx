@@ -2,10 +2,17 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fetchWeatherForRivers } from '@/lib/weather';
 import { calculateFlowEta } from '@/lib/flow-eta';
-import { calculateStatus } from '@/lib/river-utils';
+import { calculateStatus, pickLatestUsableCondition } from '@/lib/river-utils';
 import { scoreBackupRiver } from '@/lib/backup-river-scorer';
 import { getCachedUser } from '@/app/layout';
 import { GuideDashboard } from './dashboard-client';
+import type {
+  Condition,
+  FishingRating,
+  FlowTrend,
+  River,
+} from '@/lib/types/database';
+import type { AlertType } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +24,40 @@ interface HatchEventRow {
   start_day: number;
   end_month: number;
   end_day: number;
+}
+
+interface AlertRow {
+  id: string;
+  river_id: string;
+  alert_type: AlertType;
+  threshold_value: number | null;
+  updated_at: string;
+  rivers: Array<{
+    name: string;
+    slug: string;
+  }> | null;
+}
+
+interface TripTargetRiver {
+  id: string;
+  name: string;
+  slug: string;
+  optimal_flow_min: number | null;
+  optimal_flow_max: number | null;
+}
+
+interface DashboardRiver extends River {
+  current_condition: Condition | null;
+  conditions: Condition[];
+  trend: FlowTrend;
+  angler_rating?: {
+    label: FishingRating;
+    count: number;
+  };
+  eta: ReturnType<typeof calculateFlowEta>;
+  weather: Awaited<ReturnType<typeof fetchWeatherForRivers>> extends Map<string, infer T> ? T : null;
+  active_hatches: string[];
+  upcoming_hatches: string[];
 }
 
 const DAYS_BEFORE_MONTH = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
@@ -69,7 +110,6 @@ export default async function DashboardPage() {
         notesByRiver={{}}
         nextTrip={null}
         backup={null}
-        user={user}
       />
     );
   }
@@ -148,15 +188,19 @@ export default async function DashboardPage() {
       .maybeSingle(),
   ]);
 
-  const alerts = (alertRows ?? []).map((a: any) => ({
+  const alerts = ((alertRows ?? []) as AlertRow[]).map((a) => {
+    const river = a.rivers?.[0] ?? null;
+
+    return {
     id: a.id,
     river_id: a.river_id,
-    river_name: a.rivers?.name ?? 'Unknown',
-    river_slug: a.rivers?.slug ?? '',
+    river_name: river?.name ?? 'Unknown',
+    river_slug: river?.slug ?? '',
     alert_type: a.alert_type,
     threshold_value: a.threshold_value,
     updated_at: a.updated_at,
-  }));
+    };
+  });
 
   const notesByRiver: Record<string, string> = {};
   for (const n of noteRows ?? []) {
@@ -176,7 +220,7 @@ export default async function DashboardPage() {
 
   // 8. Assemble per-river data
   const SCORE: Record<string, number> = { poor: 1, fair: 2, good: 3, excellent: 4 };
-  const LABEL = ['poor', 'poor', 'fair', 'good', 'excellent'];
+  const LABEL: FishingRating[] = ['poor', 'poor', 'fair', 'good', 'excellent'];
 
   const checkinMap = new Map<string, { total: number; count: number }>();
   for (const c of checkins ?? []) {
@@ -188,9 +232,9 @@ export default async function DashboardPage() {
     checkinMap.set(c.river_id, entry);
   }
 
-  const dashboardRivers = (rivers ?? []).map((river) => {
+  const dashboardRivers: DashboardRiver[] = (rivers ?? []).map((river) => {
     const riverConditions = (conditions ?? []).filter((c) => c.river_id === river.id);
-    const currentCondition = riverConditions[riverConditions.length - 1] ?? null;
+    const currentCondition = pickLatestUsableCondition([...riverConditions].reverse());
     const trend = currentCondition?.trend ?? 'unknown';
 
     if (currentCondition) {
@@ -206,7 +250,7 @@ export default async function DashboardPage() {
 
     const agg = checkinMap.get(river.id);
     const angler_rating = agg
-      ? { label: LABEL[Math.round(agg.total / agg.count)] as any, count: agg.count }
+      ? { label: LABEL[Math.round(agg.total / agg.count)], count: agg.count }
       : undefined;
 
     const eta = calculateFlowEta(riverConditions, river.optimal_flow_min, river.optimal_flow_max);
@@ -216,7 +260,7 @@ export default async function DashboardPage() {
 
     return {
       ...river,
-      current_condition: currentCondition,
+      current_condition: currentCondition ?? null,
       conditions: riverConditions,
       trend,
       angler_rating,
@@ -239,8 +283,9 @@ export default async function DashboardPage() {
     eta_label: string | null;
   };
 
-  if (nextTripRow && nextTripRow.target_river) {
-    const targetRiver: any = nextTripRow.target_river;
+  const targetRiver = nextTripRow?.target_river?.[0] as TripTargetRiver | undefined;
+
+  if (nextTripRow && targetRiver) {
     const existing = dashboardRivers.find((r) => r.id === targetRiver.id);
 
     let riverConditions = existing?.conditions ?? [];
@@ -309,7 +354,7 @@ export default async function DashboardPage() {
     (dashboardRivers[0]?.id as string | undefined) ??
     '';
   const backupScore = primaryIdForBackup
-    ? scoreBackupRiver(dashboardRivers as any, primaryIdForBackup)
+    ? scoreBackupRiver(dashboardRivers, primaryIdForBackup)
     : null;
 
   const backup = backupScore
@@ -329,7 +374,6 @@ export default async function DashboardPage() {
       notesByRiver={notesByRiver}
       nextTrip={nextTrip}
       backup={backup}
-      user={user}
     />
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { User } from '@supabase/supabase-js';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,15 @@ import CheckinFeed from '@/components/checkin-feed';
 import WeatherStrip from '@/components/weather-strip';
 import { HatchEditorDrawer } from '@/components/hatch-editor-drawer';
 import { isHatchActive } from '@/lib/hatch-utils';
-import type { HatchEvent } from '@/lib/types/database';
+import type {
+  CheckInWithMeta,
+  Condition,
+  FlowTrend,
+  HatchEvent,
+  River,
+  RiverSpecies,
+  UserNote,
+} from '@/lib/types/database';
 import {
   LineChart,
   Line,
@@ -36,7 +45,9 @@ import {
 import { calculateFlowEta } from '@/lib/flow-eta';
 import { interpretConditions } from '@/lib/conditions-interpreter';
 import { ConditionsSummaryCard } from '@/components/conditions-summary';
-import type { NWMForecastPoint } from '@/lib/nwm-forecast';
+import type { NWMForecast, NWMForecastPoint } from '@/lib/nwm-forecast';
+import type { WeatherForecast } from '@/lib/weather';
+import type { HistoricalFlow } from '@/lib/usgs-historical';
 import { OptimalRangeEditor } from '@/components/optimal-range-editor';
 import {
   Heart,
@@ -157,7 +168,37 @@ interface Toast {
   message: string;
 }
 
-export function RiverDetail({ riverData }: { riverData: any }) {
+type RiverCheckin = CheckInWithMeta & { is_own: boolean };
+
+interface RiverChartPoint {
+  time: string;
+  flow: number | null;
+  temp: number | null;
+}
+
+interface RiverDetailData extends River {
+  current_condition: Condition | null;
+  conditions: Condition[];
+  species: RiverSpecies[];
+  is_favorite: boolean;
+  user_note: UserNote | null;
+  trend: FlowTrend | 'unknown';
+  user: User | null;
+  checkins: RiverCheckin[];
+  eta: ReturnType<typeof calculateFlowEta>;
+  weather: WeatherForecast | null;
+  historical_last_year: HistoricalFlow | null;
+  historical_two_years_ago: HistoricalFlow | null;
+  hatches: HatchEvent[];
+  nwmForecast: NWMForecast | null;
+  is_in_roster: boolean;
+  optimal_flow_min_override: number | null;
+  optimal_flow_max_override: number | null;
+  optimal_flow_min_global: number | null;
+  optimal_flow_max_global: number | null;
+}
+
+export function RiverDetail({ riverData }: { riverData: RiverDetailData }) {
   const {
     id, name, region, description, usgs_station_id,
     latitude, longitude, optimal_flow_min, optimal_flow_max,
@@ -183,7 +224,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   const [isSavingNote, setIsSavingNote]   = useState(false);
   const [toast, setToast]                 = useState<Toast | null>(null);
   const [showCheckinForm, setShowCheckinForm] = useState(false);
-  const [checkins, setCheckins]           = useState<any[]>(initialCheckins);
+  const [checkins, setCheckins]           = useState<RiverCheckin[]>(initialCheckins);
   const [hatchList, setHatchList]         = useState<HatchEvent[]>(hatches as HatchEvent[]);
   const [hatchDrawer, setHatchDrawer]     = useState<
     | { mode: 'closed' }
@@ -267,7 +308,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
     return hatchList.filter((h) => !(h.user_id === null && clonedSeedIds.has(h.id)));
   })();
 
-  const chartData = conditions.map((c: any) => ({
+  const chartData: RiverChartPoint[] = conditions.map((c) => ({
     time: format(new Date(c.timestamp), 'HH:mm'),
     flow: c.flow,
     temp: c.temperature,
@@ -279,7 +320,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   };
 
   const handleToggleFavorite = async () => {
-    if (!user) { window.location.href = '/login'; return; }
+    if (!user) { router.push('/login'); return; }
     try {
       const res = await fetch('/api/favorites', {
         method: isFavorite ? 'DELETE' : 'POST',
@@ -291,7 +332,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
   };
 
   const handleSaveNote = async () => {
-    if (!user) { window.location.href = '/login'; return; }
+    if (!user) { router.push('/login'); return; }
     setIsSavingNote(true);
     try {
       const res = await fetch('/api/notes', {
@@ -717,7 +758,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                       Species
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {species.map((s: any) => (
+                      {species.map((s) => (
                         <Badge key={s.id} variant="secondary" className="text-xs">
                           <Fish className="h-3 w-3 mr-1" />
                           {s.species.charAt(0).toUpperCase() + s.species.slice(1)}
@@ -896,7 +937,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     dot={false}
                     activeDot={{ r: 4, fill: 'hsl(200,65%,38%)' }}
                   />
-                  {chartData.some((d: any) => d.temp !== null) && (
+                  {chartData.some((d) => d.temp !== null) && (
                     <Line
                       type="monotone"
                       dataKey="temp"
@@ -955,7 +996,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                     size="sm"
                     variant={user ? 'default' : 'outline'}
                     onClick={() => {
-                      if (!user) { window.location.href = '/login'; return; }
+                      if (!user) { router.push('/login'); return; }
                       setShowCheckinForm(true);
                     }}
                     className="gap-1.5"
@@ -978,7 +1019,13 @@ export function RiverDetail({ riverData }: { riverData: any }) {
                   }}
                 />
               )}
-              <CheckinFeed initialCheckins={checkins} riverId={id} />
+              <CheckinFeed
+                checkins={checkins}
+                riverId={id}
+                onDelete={(idToDelete) => {
+                  setCheckins((prev) => prev.filter((checkin) => checkin.id !== idToDelete));
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -998,7 +1045,7 @@ export function RiverDetail({ riverData }: { riverData: any }) {
               </CardHeader>
               <CardContent className="px-5 pb-5">
                 <div className="flex flex-wrap gap-2">
-                  {species.map((s: any) => (
+                  {species.map((s) => (
                     <Badge key={s.id} variant="secondary" className="capitalize">
                       {s.species}
                     </Badge>

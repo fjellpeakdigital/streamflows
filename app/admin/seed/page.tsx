@@ -93,8 +93,9 @@ export default function SeedPage() {
 
           // Small delay between batches to be nice to USGS
           await new Promise((r) => setTimeout(r, 500));
-        } catch (err: any) {
-          addLog(`FETCH ERROR: ${err.message}`);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          addLog(`FETCH ERROR: ${message}`);
           totalErrors++;
           // Retry after a longer delay
           addLog('Retrying in 5 seconds...');

@@ -85,6 +85,16 @@ export async function GET(request: Request) {
         continue;
       }
 
+      const hasObservedValue =
+        siteData.flow !== null ||
+        siteData.temperature !== null ||
+        siteData.gageHeight !== null;
+      if (!hasObservedValue) {
+        noDataCount++;
+        errors.push(`${river.name}: DV response contained no usable values`);
+        continue;
+      }
+
       const dataAge = Date.now() - new Date(siteData.timestamp).getTime();
       if (dataAge > sevenDays) {
         errors.push(`${river.name}: stale DV data (${siteData.timestamp}), skipping`);
@@ -150,8 +160,9 @@ export async function GET(request: Request) {
       errors,
       results,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in daily cron:', error);
-    return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
+    return NextResponse.json({ success: false, error: message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }

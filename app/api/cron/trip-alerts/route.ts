@@ -157,10 +157,11 @@ export async function GET(request: Request) {
       deactivated,
       duration_ms: totalTime,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in trip-alerts cron:', error);
     return NextResponse.json(
-      { success: false, error: error.message, duration_ms: Date.now() - startTime },
+      { success: false, error: message, duration_ms: Date.now() - startTime },
       { status: 500 }
     );
   }

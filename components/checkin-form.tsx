@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { X, Droplets, Fish, Users, Wind } from 'lucide-react';
-import type { FishingRating, FlowAccuracy } from '@/lib/types/database';
+import type { CheckInWithMeta, FishingRating, FlowAccuracy } from '@/lib/types/database';
+
+type CheckinResponse = CheckInWithMeta & { is_own: boolean };
 
 interface CheckinFormProps {
   riverId: string;
-  onSuccess: (checkin: Record<string, unknown>) => void;
+  onSuccess: (checkin: CheckinResponse) => void;
   onCancel: () => void;
 }
 
@@ -85,7 +87,7 @@ export default function CheckinForm({ riverId, onSuccess, onCancel }: CheckinFor
         return;
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as CheckinResponse;
       onSuccess(data);
     } catch {
       setError('An unexpected error occurred');

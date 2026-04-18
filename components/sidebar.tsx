@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   ArrowRight,
@@ -52,6 +52,12 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [search, setSearch] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const filteredRivers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -111,7 +117,7 @@ export function Sidebar({
             // Pulse the dot when data is fresh (< 30 min) — signals live updates
             const ts = river.current_condition?.timestamp;
             const isFresh = ts
-              ? Date.now() - new Date(ts).getTime() < 30 * 60 * 1000
+              ? now - new Date(ts).getTime() < 30 * 60 * 1000
               : false;
             return (
               <li key={river.id}>

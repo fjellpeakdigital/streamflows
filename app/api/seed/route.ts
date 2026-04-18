@@ -93,8 +93,9 @@ async function fetchHistoricalBatch(
         result.set(siteId, readings);
       }
     }
-  } catch (error: any) {
-    errors.push(`USGS DV error: ${error?.message ?? String(error)}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`USGS DV error: ${message}`);
   }
 
   return result;
@@ -253,8 +254,9 @@ export async function GET(request: Request) {
         : null,
       errors: errors.slice(0, 20),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error in seed:', error);
-    return NextResponse.json({ success: false, error: error.message, duration_ms: Date.now() - startTime }, { status: 500 });
+    return NextResponse.json({ success: false, error: message, duration_ms: Date.now() - startTime }, { status: 500 });
   }
 }

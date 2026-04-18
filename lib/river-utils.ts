@@ -1,4 +1,4 @@
-import { RiverStatus, FlowTrend } from './types/database';
+import { Condition, RiverStatus, FlowTrend } from './types/database';
 
 export function calculateStatus(
   flow: number | null,
@@ -19,6 +19,22 @@ export function calculateTrend(currentFlow: number, flowThreeHoursAgo: number): 
   if (currentFlow > flowThreeHoursAgo * 1.10) return 'rising';
   if (currentFlow < flowThreeHoursAgo * 0.90) return 'falling';
   return 'stable';
+}
+
+export function hasUsableConditionData(
+  condition: Pick<Condition, 'flow' | 'temperature' | 'gage_height'>
+): boolean {
+  const hasFlow = condition.flow !== null && condition.flow > -999000;
+  const hasTemperature = condition.temperature !== null;
+  const hasGageHeight = condition.gage_height !== null;
+  return hasFlow || hasTemperature || hasGageHeight;
+}
+
+export function pickLatestUsableCondition<T extends Condition>(
+  conditions: T[]
+): T | null {
+  if (conditions.length === 0) return null;
+  return conditions.find(hasUsableConditionData) ?? conditions[0] ?? null;
 }
 
 /** Tailwind bg+text classes for status badge (light theme) */
