@@ -43,6 +43,9 @@ app/
   alerts/
     page.tsx                  — Alerts page
     alerts-list.tsx           — Alerts client component
+  account/
+    page.tsx                  — Account RSC. Auth-gated server entry for settings/profile
+    account-client.tsx        — Client component rendered by account page.tsx
   api/
     favorites/route.ts        — CRUD for user_favorites
     notes/route.ts            — CRUD for user_notes
@@ -68,6 +71,7 @@ lib/
   river-utils.ts              — calculateStatus(), calculateTrend(), getStatusColor(), getStatusBorderColor(), getStatusDotColor(), formatFlow(), formatTemperature()
   flow-eta.ts                 — calculateFlowEta() — already works. Extends to 72h. Use this for Phase 3 forecasting.
   usgs.ts                     — fetchAllSites() — batches USGS IV/DV API calls in groups of 50
+  auth.ts                     — shared server-side auth guard helpers (e.g. requireUser())
   weather.ts                  — fetchWeatherForRivers()
   supabase/client.ts
   supabase/server.ts
@@ -230,6 +234,16 @@ which means the daily cron then can't get DV data for it (it's an IV-only gauge)
 and the river ends up with no conditions at all. The `fetch-data` cron has the
 correct retry-with-P7D logic; copy that pattern when you next touch detection.
 
+### Empty USGS time series can create fake "fresh" no-data rows
+USGS sometimes returns a `timeSeries` block for a station with zero observed values
+inside `values[0].value`. If `lib/usgs.ts::parseUSGSResponse()` treats that as real
+data and invents a "now" timestamp, the cron inserts a brand-new `conditions` row
+with `flow=null`, `temperature=null`, `gage_height=null`, and `status='no_data'`.
+The UI then prefers that newest row and masks the previous valid reading across the
+rivers list, dashboard, sidebar, and river detail page. Skip series with no
+observed values, and keep the page-level fallback that prefers the latest usable
+condition over a newer empty placeholder row.
+
 ### Variable shadowing in long functions
 `app/rivers/page.tsx::getRivers()` already has a `sevenDaysAgo` later in the
 function for the check-ins query. If you add a second time-window const at the top,
@@ -305,3 +319,27 @@ Files to touch: [explicit list]
 Files NOT to touch: [adjacent files to leave alone]
 Done when: [specific verifiable outcome]
 ```
+
+---
+
+## Recent update — 2026-04-18
+
+This repo just went through a QA hardening pass. Key outcomes:
+
+- `/account` now follows the same server-side auth guard pattern as the rest of the protected app via `lib/auth.ts` and `app/account/account-client.tsx`.
+- White-glove authenticated QA was run against production with a real test account; summary is captured in `QA_REPORT_2026-04-17.md`.
+- `components/checkin-feed.tsx` was fixed to render from parent-owned state so newly logged trips/check-ins appear immediately without a reload.
+- `lib/usgs.ts`, `app/api/cron/fetch-data/route.ts`, and `app/api/cron/fetch-daily/route.ts` now ignore empty USGS series instead of inserting fresh all-null `conditions` rows.
+- `app/rivers/page.tsx`, `app/dashboard/page.tsx`, `app/layout.tsx`, and `app/rivers/[slug]/page.tsx` now prefer the latest usable condition so a newer placeholder row does not mask an older valid reading.
+- Production data inspection during QA found that `Battenkill River` is currently mapped to USGS station `01332500`, which USGS identifies as `HOOSIC RIVER NEAR WILLIAMSTOWN, MA`; treat that station mapping as suspect until corrected.
+
+### Additional missing-data gotcha
+
+USGS can return a `timeSeries` block for a station with zero observed values in
+`values[0].value`. If `lib/usgs.ts::parseUSGSResponse()` treats that as real data
+and invents a "now" timestamp, the cron inserts a brand-new `conditions` row with
+`flow=null`, `temperature=null`, `gage_height=null`, and `status='no_data'`. The
+UI then prefers that newest row and masks the previous valid reading across the
+rivers list, dashboard, sidebar, and river detail page. Skip series with no
+observed values, and keep the page-level fallback that prefers the latest usable
+condition over a newer empty placeholder row.

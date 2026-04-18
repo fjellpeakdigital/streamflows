@@ -178,6 +178,7 @@ export interface RiverWithCondition extends River {
   user_note?: UserNote;
   user_roster?: UserRoster;
   trend?: FlowTrend;
+  hidden_from_discover?: boolean;
   /** Aggregated angler rating from public check-ins in the last 7 days */
   angler_rating?: {
     label: FishingRating;
