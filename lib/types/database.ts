@@ -173,6 +173,9 @@ export interface CheckInWithMeta extends CheckIn {
 
 export interface RiverWithCondition extends River {
   current_condition?: Condition;
+  /** Recent conditions, newest first (last 7d). Populated by list/detail RSCs;
+   *  consumed by river-card sparkline + flow ETA. */
+  conditions?: Condition[];
   species?: RiverSpecies[];
   is_favorite?: boolean;
   user_note?: UserNote;

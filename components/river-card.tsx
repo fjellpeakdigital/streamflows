@@ -5,16 +5,17 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { type Condition, RiverWithCondition } from '@/lib/types/database';
+import { RiverWithCondition } from '@/lib/types/database';
 import {
-  getStatusColor,
-  getStatusLabel,
   getStatusBorderColor,
   formatFlow,
   formatTemperature,
 } from '@/lib/river-utils';
 import { calculateFlowEta } from '@/lib/flow-eta';
-import { Heart, TrendingUp, TrendingDown, Minus, Thermometer, Waves, Clock, Fish } from 'lucide-react';
+import { Heart, Thermometer, Waves, Clock, Fish } from 'lucide-react';
+import { StatusBadge, getStatusDotCssColor } from '@/components/status-badge';
+import { TrendChip } from '@/components/trend-chip';
+import { Sparkline } from '@/components/sparkline';
 
 const ANGLER_BADGE: Record<string, string> = {
   poor:      'bg-red-50     text-red-600     border-red-200',
@@ -29,28 +30,27 @@ interface RiverCardProps {
   showFavorite?: boolean;
 }
 
-function TrendIcon({ trend }: { trend: string }) {
-  if (trend === 'rising')  return <TrendingUp  className="h-4 w-4 text-amber-600" aria-label="Rising" />;
-  if (trend === 'falling') return <TrendingDown className="h-4 w-4 text-blue-600"  aria-label="Falling" />;
-  return <Minus className="h-4 w-4 text-muted-foreground" aria-label="Stable" />;
-}
-
 export function RiverCard({
   river,
   onToggleFavorite,
   showFavorite = false,
 }: RiverCardProps) {
   const condition = river.current_condition;
-  const status = condition?.status || 'low';
+  const status = condition?.status || 'unknown';
   const trend = river.trend || 'stable';
   const anglerRating = river.angler_rating;
   const gaugeNotResponding = river.no_usable_data_72h ?? false;
-  const conditionsHistory = (
-    river as RiverWithCondition & { conditions?: Condition[] }
-  ).conditions;
+  const conditionsHistory = river.conditions;
   const etaLabel = conditionsHistory
     ? calculateFlowEta(conditionsHistory, river.optimal_flow_min, river.optimal_flow_max).label
     : '';
+
+  const sparkData = (conditionsHistory ?? [])
+    .slice()
+    .reverse()
+    .map((c) => c.flow)
+    .filter((f): f is number => f != null && f > -999000);
+
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function RiverCard({
     <Link href={`/rivers/${river.slug}`} className="group block h-full">
       <Card className={`
         hover-lift h-full overflow-hidden
-        border-border bg-white hover:border-primary/30
+        border-border bg-card hover:border-primary/30
         border-l-4 ${getStatusBorderColor(status)}
       `}>
         <CardContent className="p-4 space-y-3">
@@ -100,13 +100,8 @@ export function RiverCard({
 
           {/* Status + trend */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={`${getStatusColor(status)} text-xs px-2 py-0.5 rounded-md font-semibold`}>
-              {getStatusLabel(status)}
-            </Badge>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendIcon trend={trend} />
-              <span className="capitalize">{trend}</span>
-            </div>
+            <StatusBadge status={status} size="sm" />
+            <TrendChip trend={trend} />
             {anglerRating && (
               <span
                 className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border ${ANGLER_BADGE[anglerRating.label] ?? ANGLER_BADGE.fair}`}
@@ -138,7 +133,7 @@ export function RiverCard({
                 <Waves className="h-3 w-3" />
                 Flow
               </div>
-              <div className="font-semibold text-sm text-foreground">
+              <div className="font-bold text-sm text-foreground tabular-nums">
                 {formatFlow(condition?.flow ?? null)}
               </div>
             </div>
@@ -147,14 +142,32 @@ export function RiverCard({
                 <Thermometer className="h-3 w-3" />
                 Temp
               </div>
-              <div className="font-semibold text-sm text-foreground">
+              <div className="font-semibold text-sm text-foreground tabular-nums">
                 {formatTemperature(condition?.temperature ?? null)}
               </div>
             </div>
           </div>
 
-          {/* Optimal range */}
-          {river.optimal_flow_min && river.optimal_flow_max && (
+          {/* Sparkline + optimal range */}
+          {sparkData.length > 1 && (
+            <div className="flex items-center gap-2.5">
+              <Sparkline
+                data={sparkData}
+                optMin={river.optimal_flow_min}
+                optMax={river.optimal_flow_max}
+                color={getStatusDotCssColor(status)}
+                ariaLabel={`${river.name} flow trend, last ${sparkData.length} readings`}
+              />
+              {river.optimal_flow_min && river.optimal_flow_max && (
+                <span className="text-[10px] text-muted-foreground">
+                  Opt: {river.optimal_flow_min}–{river.optimal_flow_max}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Optimal range — only when sparkline is absent (avoid duplication) */}
+          {sparkData.length <= 1 && river.optimal_flow_min && river.optimal_flow_max && (
             <p className="text-xs text-muted-foreground">
               Optimal: {river.optimal_flow_min}–{river.optimal_flow_max} CFS
             </p>

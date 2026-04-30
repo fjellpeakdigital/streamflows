@@ -130,6 +130,7 @@ async function getRivers() {
     return {
       ...river,
       current_condition: currentCondition,
+      conditions: riverConditions,
       species: riverSpecies,
       trend,
       is_favorite,
