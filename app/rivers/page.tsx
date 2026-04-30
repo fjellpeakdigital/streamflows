@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { RiversList } from './rivers-list';
-import { FishingRating, RiverWithCondition, RiverStatus, UserFavorite } from '@/lib/types/database';
+import { FishingRating, River, RiverWithCondition, RiverStatus, UserFavorite } from '@/lib/types/database';
 import { getStatusDotColor, getStatusLabel, calculateStatus, pickLatestUsableCondition } from '@/lib/river-utils';
 import { getUserHomeRegions, formatHomeRegionsLabel } from '@/lib/user-regions';
 import { isSuppressedFromDiscovery } from '@/lib/river-visibility';
@@ -14,13 +14,43 @@ async function getRivers() {
   const { data: { user } } = await supabase.auth.getUser();
   const homeRegions = getUserHomeRegions(user);
 
+  // Fetch roster IDs early so we can ensure roster rivers are visible even
+  // when they fall outside the user's home-region scope. Otherwise the
+  // rivers list filters them out and the empty-roster state fires for users
+  // who actually have rivers on their roster.
+  let rosterRiverIds: string[] = [];
+  if (user) {
+    const { data: rosterData } = await supabase
+      .from('user_roster')
+      .select('river_id')
+      .eq('user_id', user.id)
+      .eq('archived', false);
+    rosterRiverIds = (rosterData || []).map((r: { river_id: string }) => r.river_id);
+  }
+
   let riversQuery = supabase.from('rivers').select('*').order('name').limit(5000);
   if (homeRegions.length > 0) riversQuery = riversQuery.in('region', homeRegions);
-  const { data: rivers, error: riversError } = await riversQuery;
+  const { data: regionRivers, error: riversError } = await riversQuery;
 
   if (riversError) {
     console.error('Error fetching rivers:', riversError);
     return { rivers: [], rosterRiverIds: [], isAuthenticated: false, homeRegions: [] as string[] };
+  }
+
+  // Pull in any roster rivers that the home-region filter excluded.
+  let rivers: River[] = regionRivers ?? [];
+  if (homeRegions.length > 0 && rosterRiverIds.length > 0) {
+    const haveIds = new Set(rivers.map((r) => r.id));
+    const missingIds = rosterRiverIds.filter((id) => !haveIds.has(id));
+    if (missingIds.length > 0) {
+      const { data: extraRivers } = await supabase
+        .from('rivers')
+        .select('*')
+        .in('id', missingIds);
+      if (extraRivers && extraRivers.length > 0) {
+        rivers = [...rivers, ...extraRivers].sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
   }
 
   // Scope conditions/species queries to the rivers actually being rendered.
@@ -58,20 +88,12 @@ async function getRivers() {
     : { data: [] };
 
   let favorites: Pick<UserFavorite, 'river_id'>[] = [];
-  let rosterRiverIds: string[] = [];
   if (user) {
     const { data: favData } = await supabase
       .from('user_favorites')
       .select('river_id')
       .eq('user_id', user.id);
     favorites = favData || [];
-
-    const { data: rosterData } = await supabase
-      .from('user_roster')
-      .select('river_id')
-      .eq('user_id', user.id)
-      .eq('archived', false);
-    rosterRiverIds = (rosterData || []).map((r: { river_id: string }) => r.river_id);
   }
 
   // Fetch all public check-ins from the last 7 days in one query
